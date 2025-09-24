@@ -1,4 +1,4 @@
-def create_buildings(directory, file):
+def create_environment(directory, file):
   
     #directory = '/content/drive/My Drive/Colab Notebooks/projects/UNET_100_x_100/data'
     #file = 'hkenv.txt'
@@ -67,4 +67,33 @@ def create_buildings(directory, file):
     
     print("Number of buildings (from file):", len(buildings))
     print("Total number of walls (from file):", len(walls))
-    return buildings, polygons
+    
+  
+    # Create receiver grid using bilinear interpolation.
+    u_vals = np.linspace(0, 1, nx)
+    v_vals = np.linspace(0, 1, ny)
+    receiver_points = np.zeros((nx * ny, 2))
+    index = 0
+    for v in v_vals:
+        for u in u_vals:
+            # Bilinear interpolation:
+            point = (1 - v) * ((1 - u) * lb + u * rb) + v * ((1 - u) * lt + u * rt)
+            receiver_points[index, :] = point
+            index += 1
+    
+    # Set z-coordinate for all receivers to 1.50.
+    R_grid = np.column_stack((receiver_points, np.full(receiver_points.shape[0], hRX)))
+    R_horiz = R_grid[:, :2]  # For horizontal computations.
+     
+    rx_points = [Point(R_horiz[i]) for i in range(R_horiz.shape[0])]
+    prepared_polys = [prep(poly) for poly in polygons]
+    invalid_rx = np.zeros_like(R_horiz.shape[0], dtype=bool)
+    invalid_rx = np.array([any(pp.intersects(p) for pp in prepared_polys) for p in rx_points ])
+    valid_rx_mask = ~invalid_rx
+
+    polys_list = [bld['polygon'] for bld in buildings]
+    merged_polygons = unary_union(polys_list)
+
+    return buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons
+
+
