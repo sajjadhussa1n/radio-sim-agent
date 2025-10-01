@@ -83,7 +83,14 @@ def create_environment(file='hkenv.txt'):
     
     print("Number of buildings (from file):", len(buildings))
     print("Total number of walls (from file):", len(walls))
-    
+
+    walls_array = np.zeros((len(walls), 5))
+    for i, wall in enumerate(walls):
+        walls_array[i, 0] = wall['E1'][0]
+        walls_array[i, 1] = wall['E1'][1]
+        walls_array[i, 2] = wall['E2'][0]
+        walls_array[i, 3] = wall['E2'][1]
+        walls_array[i, 4] = wall['height']
   
     # Create receiver grid using bilinear interpolation.
     u_vals = np.linspace(0, 1, nx)
@@ -110,6 +117,6 @@ def create_environment(file='hkenv.txt'):
     polys_list = [bld['polygon'] for bld in buildings]
     merged_polygons = unary_union(polys_list)
 
-    return buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons
+    return buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls_array
 
 
