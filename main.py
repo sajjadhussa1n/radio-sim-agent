@@ -2,10 +2,11 @@ import numpy as np
 from src.preprocess import create_environment
 from src.los import vectorized_visibility_matrix
 from src.los import compute_LOS_from_Efield
+from src.los import plot_los_fields
 
 
 
-buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls_array = create_environment()
+buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, nx, ny, xx, yy = create_environment()
 T = np.array([320, 470, 25])  # UAV (x, y, z)
 T_horiz = T[:2]
 
@@ -29,3 +30,5 @@ P_LOS = np.full_like(line_of_sight_mask, np.nan, dtype=np.float32)  # Initialize
 P_LOS[line_of_sight_mask] = Pr_los[line_of_sight_mask]  # Assign valid FSPL values
 P_LOS = P_LOS.reshape(ny, nx)
 los_mask = line_of_sight_mask.reshape(ny, nx)
+
+plot_los_fields(xx, yy, los_mask, P_LOS, walls)
