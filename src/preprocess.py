@@ -1,7 +1,15 @@
-def create_environment(directory, file):
+import os
+import numpy as np
+import pandas as pd
+from shapely.geometry import Polygon, LineString, Point
+from shapely.ops import unary_union
+
+def create_environment(file='hkenv.txt'):
   
     #directory = '/content/drive/My Drive/Colab Notebooks/projects/UNET_100_x_100/data'
     #file = 'hkenv.txt'
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    directory = os.path.join(root_dir, "data")
     file_path = os.path.join(directory, file)
     data = pd.read_csv(file_path, header=None) # np.loadtxt(file_path) #  #
     
