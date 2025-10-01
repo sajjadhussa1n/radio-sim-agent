@@ -1,8 +1,9 @@
 import numpy as np
 from src.preprocess import create_environment
 from src.los import vectorized_visibility_matrix
-from src.los import compute_LOS_from_Efield
+from src.los import compute_LOS_pathloss_from_Efield
 from src.los import plot_los_fields
+from src.reflection import compute_reflection_contributions
 
 
 
