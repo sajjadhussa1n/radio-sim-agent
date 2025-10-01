@@ -107,6 +107,9 @@ def create_environment(file='hkenv.txt'):
     # Set z-coordinate for all receivers to 1.50.
     R_grid = np.column_stack((receiver_points, np.full(receiver_points.shape[0], hRX)))
     R_horiz = R_grid[:, :2]  # For horizontal computations.
+
+    xx = receiver_points[:, 0].reshape(ny, nx)
+    yy = receiver_points[:, 1].reshape(ny, nx)
      
     rx_points = [Point(R_horiz[i]) for i in range(R_horiz.shape[0])]
     prepared_polys = [prep(poly) for poly in polygons]
@@ -117,6 +120,6 @@ def create_environment(file='hkenv.txt'):
     polys_list = [bld['polygon'] for bld in buildings]
     merged_polygons = unary_union(polys_list)
 
-    return buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls_array
+    return buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, nx, ny, xx, yy
 
 
