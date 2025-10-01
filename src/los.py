@@ -182,7 +182,7 @@ def compute_LOS_pathloss_from_Efield(distances):
 
     return E_complex, P_r_dBm      
 
-def plot_los_fields():
+def plot_los_fields(xx, yy, los_mask, P_LOS, walls):
     # Create figure with subplots
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
     
@@ -215,4 +215,4 @@ def plot_los_fields():
     plt.tight_layout()
     plt.show()
     
-    fig.savefig(output_directory_plots+ env_txt + 'los_plot.png', dpi=600)
+    #fig.savefig(output_directory_plots+ env_txt + 'los_plot.png', dpi=600)
