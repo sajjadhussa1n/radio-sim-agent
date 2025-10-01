@@ -17,7 +17,7 @@ E_diff = np.zeros((len(R_grid), ), dtype=np.complex128)
 E_total = np.zeros((len(R_grid), ), dtype=np.complex128)
 
 distances = np.linalg.norm(R_grid - T, axis=1)
-Los_e_field, Pr_los = compute_LOS_pathloss_from_Efield(distances, valid_rx_mask)
+Los_e_field, Pr_los = compute_LOS_pathloss_from_Efield(distances)
 
 visibility = vectorized_visibility_matrix(T, R_grid, walls_array)
 line_of_sight_mask = np.all(~visibility, axis=1)
@@ -31,4 +31,4 @@ P_LOS[line_of_sight_mask] = Pr_los[line_of_sight_mask]  # Assign valid FSPL valu
 P_LOS = P_LOS.reshape(ny, nx)
 los_mask = line_of_sight_mask.reshape(ny, nx)
 
-plot_los_fields(xx, yy, los_mask, P_LOS, walls)
+plot_los_fields(T, xx, yy, los_mask, P_LOS, walls)
