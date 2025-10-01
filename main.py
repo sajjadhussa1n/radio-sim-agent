@@ -32,3 +32,13 @@ P_LOS = P_LOS.reshape(ny, nx)
 los_mask = line_of_sight_mask.reshape(ny, nx)
 
 plot_los_fields(T, xx, yy, los_mask, P_LOS, walls)
+
+# First-order reflection analysis: Find walls visible to TX (at least one receiver sees it)
+reflection_walls_mask = np.any(visibility, axis=0)
+TX_visible_walls = [walls[i] for i in np.nonzero(reflection_walls_mask)[0]]
+
+E_ref = compute_reflection_contributions(R_grid, T, TX_visible_walls, walls, buildings, valid_rx_mask)
+valid_reflection = E_ref != 0
+
+print("Reflection Fields computed successfully!")
+
