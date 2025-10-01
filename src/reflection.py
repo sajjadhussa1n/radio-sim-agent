@@ -2,7 +2,25 @@ import numpy as np
 from shapely.strtree import STRtree
 from shapely.geometry import Polygon, LineString, Point
 from concurrent.futures import ProcessPoolExecutor
+from shapely.ops import unary_union
+import multiprocessing as mp
 
+c = 3e8  # Speed of light in m/s
+f = 28e9 # Carrier frequency of 28 GHz
+lambda_ = c / f # Wave-length
+k = 2 * np.pi / lambda_  # Wave number
+omega = 2 * np.pi * f # Radian frequency
+P_t_dBm = 30  # Transmit power (dBm)
+P_t_w = 10 ** ((P_t_dBm - 30) / 10)  # Transmit power in Watts
+epsilon0 = 8.854e-12  # Permittivity of free space (F/m)
+mu0 = 1.25663706e-6  # Permeability of free space (H/m)
+sigma0 = 0 # Conductivity of free space
+mu = mu0 # Concrete permeability
+epsilon = 5.31*epsilon0 # concrete permittivity
+sigma = 0.626 # conductivity of concrete at 28 GHz from literature
+eta = np.sqrt(mu0/epsilon0) # impedance of free space
+Zw = np.sqrt((1j * omega * mu)/(sigma + (1j * omega * epsilon))) # Impedance of building walls at 28 GHz
+WALL_HEIGHT_TOLERANCE = 1e-6
 
 def check_3d_occlusion(ray_starts, ray_ends, walls, exclude_wall=None):
     """
@@ -136,6 +154,7 @@ def process_wall(wall, the_walls, buildings, R_grid, T_horiz, T, union_excluded_
     d = wall['length']
     this_poly = buildings[b_id]['polygon']  # building polygon of current wall
     print(f"processing {b_id}th building wall with mid-point: {p_mid}")
+    R_horiz = R_grid[:, :2]
 
     num_rx = R_grid.shape[0]
     current_reflected_e_field = np.zeros(num_rx, dtype=np.complex128)
