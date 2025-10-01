@@ -3,11 +3,18 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import Polygon, LineString, Point
 from shapely.ops import unary_union
+from shapely.prepared import prep
 
 def create_environment(file='hkenv.txt'):
   
     #directory = '/content/drive/My Drive/Colab Notebooks/projects/UNET_100_x_100/data'
     #file = 'hkenv.txt'
+    nx = 10
+    ny = 10
+    lb = np.array([0, 0])   # left–bottom Helsinki
+    rb = np.array([1220, 0])   # right–bottom
+    rt = np.array([1220, 1545])   # right–top
+    lt = np.array([0, 1545])   # left–top
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     directory = os.path.join(root_dir, "data")
     file_path = os.path.join(directory, file)
