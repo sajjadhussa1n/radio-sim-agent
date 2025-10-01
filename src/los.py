@@ -1,3 +1,6 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
 def compute_facing_walls_mask(tx, walls):
     """
     Determine which walls are facing the transmitter based on their normal vectors.
@@ -147,6 +150,13 @@ def compute_LOS_pathloss_from_Efield(distances):
       E_complex   : Complex E-field (same shape as distances)
 
     """
+    c = 3e8  # Speed of light in m/s
+    f = 28e9 # Carrier frequency of 28 GHz
+    lambda_ = c / f # Wave-length
+    k = 2 * np.pi / lambda_  # Wave number
+    omega = 2 * np.pi * f # Radian frequency
+    P_t_dBm = 30  # Transmit power (dBm)
+    P_t_w = 10 ** ((P_t_dBm - 30) / 10)  # Transmit power in Watts
 
     # Compute incident E-field magnitude (V/m);
     E = np.sqrt(30 * P_t_w) / distances
