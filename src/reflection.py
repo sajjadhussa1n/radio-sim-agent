@@ -256,7 +256,8 @@ def compute_reflection_contributions(R_grid: np.ndarray, T: np.ndarray,
         union_excluded_dict[b_id] = unary_union(other_polys) if other_polys else None
 
     # Parallel processing
-    num_workers = mp.cpu_count() - 2
+    print("mp.cpu_count():", mp.cpu_count())
+    num_workers = mp.cpu_count() - 1
     print("num_workers: ", num_workers)
     print(" Number of visible walls: ", len(walls))
     with ProcessPoolExecutor(max_workers=num_workers) as executor:
