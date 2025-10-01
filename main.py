@@ -1,4 +1,26 @@
-# run main.py here
+import numpy as np
 from src.preprocess import create_environment
+from src.los import compute_LOS_from_Efield
+
+
 
 buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons = create_environment()
+T = np.array([320, 470, 25])  # UAV (x, y, z)
+T_horiz = T[:2]
+
+E_LOS = np.zeros((len(R_grid), ), dtype=np.complex128)
+E_ref = np.zeros((len(R_grid), ), dtype=np.complex128)
+E_g_ref = np.zeros((len(R_grid), ), dtype=np.complex128)
+E_diff = np.zeros((len(R_grid), ), dtype=np.complex128)
+E_total = np.zeros((len(R_grid), ), dtype=np.complex128)
+
+distances = np.linalg.norm(R_grid - T, axis=1)
+Los_e_field, Pr_los = compute_LOS_pathloss_from_Efield(distances, valid_rx_mask)
+
+E_LOS[line_of_sight_mask] = Los_e_field[line_of_sight_mask]
+
+# Reshape to grid size
+P_LOS = np.full_like(line_of_sight_mask, np.nan, dtype=np.float32)  # Initialize with NaN
+P_LOS[line_of_sight_mask] = Pr_los[line_of_sight_mask]  # Assign valid FSPL values
+P_LOS = P_LOS.reshape(ny, nx)
+los_mask = line_of_sight_mask.reshape(ny, nx)
