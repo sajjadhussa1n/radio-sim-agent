@@ -1,10 +1,11 @@
 import numpy as np
 from src.preprocess import create_environment
+from src.los import vectorized_visibility_matrix
 from src.los import compute_LOS_from_Efield
 
 
 
-buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons = create_environment()
+buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls_array = create_environment()
 T = np.array([320, 470, 25])  # UAV (x, y, z)
 T_horiz = T[:2]
 
@@ -16,6 +17,10 @@ E_total = np.zeros((len(R_grid), ), dtype=np.complex128)
 
 distances = np.linalg.norm(R_grid - T, axis=1)
 Los_e_field, Pr_los = compute_LOS_pathloss_from_Efield(distances, valid_rx_mask)
+
+visibility = vectorized_visibility_matrix(T, R_grid, walls_array)
+line_of_sight_mask = np.all(~visibility, axis=1)
+line_of_sight_mask = line_of_sight_mask & valid_rx_mask
 
 E_LOS[line_of_sight_mask] = Los_e_field[line_of_sight_mask]
 
