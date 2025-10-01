@@ -182,7 +182,7 @@ def compute_LOS_pathloss_from_Efield(distances):
 
     return E_complex, P_r_dBm      
 
-def plot_los_fields(xx, yy, los_mask, P_LOS, walls):
+def plot_los_fields(T, xx, yy, los_mask, P_LOS, walls):
 
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     directory = os.path.join(root_dir, "data")
