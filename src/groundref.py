@@ -6,7 +6,7 @@ def compute_ground_reflection(T, R_grid, tx_to_g_mask):
     # =============================================================================
     # Ground Reflection Fields Module (Vectorized)
     # =============================================================================
-    
+    E_g_ref = np.zeros((len(R_grid), ), dtype=np.complex128)
     num_rx = R_grid.shape[0]
     ground_reflected_e_field = np.zeros(num_rx, dtype=np.complex128)
     
@@ -76,3 +76,4 @@ def compute_ground_reflection(T, R_grid, tx_to_g_mask):
     resultant_field = resultant_field * amplitude_term * phase_factor_r
     
     E_g_ref[tx_to_g_mask] = resultant_field[tx_to_g_mask]
+    return E_g_ref
