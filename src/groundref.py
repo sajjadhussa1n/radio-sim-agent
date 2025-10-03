@@ -1,4 +1,27 @@
-def compute_ground_reflection(T, R_grid):
+import numpy as np
+from shapely.geometry import Polygon, LineString, Point
+
+c = 3e8  # Speed of light in m/s
+f = 28e9 # Carrier frequency of 28 GHz
+lambda_ = c / f # Wave-length
+k = 2 * np.pi / lambda_  # Wave number
+omega = 2 * np.pi * f # Radian frequency
+P_t_dBm = 30  # Transmit power (dBm)
+P_t_w = 10 ** ((P_t_dBm - 30) / 10)  # Transmit power in Watts
+epsilon0 = 8.854e-12  # Permittivity of free space (F/m)
+mu0 = 1.25663706e-6  # Permeability of free space (H/m)
+sigma0 = 0 # Conductivity of free space
+mu = mu0 # Concrete permeability
+epsilon = 5.31*epsilon0 # concrete permittivity
+sigma = 0.626 # conductivity of concrete at 28 GHz from literature
+eta = np.sqrt(mu0/epsilon0) # impedance of free space
+Zw = np.sqrt((1j * omega * mu)/(sigma + (1j * omega * epsilon))) # Impedance of building walls at 28 GHz
+epsilon_g = 3.0*epsilon0
+sigma_g = 0.04967
+Zg = np.sqrt((1j * omega * mu)/(sigma_g + (1j * omega * epsilon_g))) # Impedance of ground at 28 GHz
+
+
+def compute_ground_reflection(T, R_grid, tx_to_g_mask):
     # =============================================================================
     # Ground Reflection Fields Module (Vectorized)
     # =============================================================================
@@ -21,12 +44,6 @@ def compute_ground_reflection(T, R_grid):
         # Stack into a (N, 3) array
     G_grid = np.column_stack((x_g, y_g, z_g))
     G_horiz = G_grid[:, :2]
-    
-        # Compute visibility matrix from TX to ground reflection points
-    TX_to_G_visibility = vectorized_visibility_matrix(T, G_grid, walls_array, batch_size=1000)
-    
-    # Line-of-sight analysis from TX-to-ground reflection points: Find receivers with no intersections
-    tx_to_g_mask = np.all(~TX_to_G_visibility, axis=1)
     
     candidate_indices = np.where(tx_to_g_mask)[0]
     for i in candidate_indices:
