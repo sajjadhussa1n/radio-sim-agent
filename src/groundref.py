@@ -1,8 +1,9 @@
 import numpy as np
 from shapely.geometry import Polygon, LineString, Point
 from src.constants import *
+from src.los import vectorized_visibility_matrix 
 
-def compute_ground_reflection(T, R_grid, tx_to_g_mask):
+def compute_ground_reflection(T, R_grid):
     # =============================================================================
     # Ground Reflection Fields Module (Vectorized)
     # =============================================================================
@@ -25,6 +26,12 @@ def compute_ground_reflection(T, R_grid, tx_to_g_mask):
         # Stack into a (N, 3) array
     G_grid = np.column_stack((x_g, y_g, z_g))
     G_horiz = G_grid[:, :2]
+
+    # Compute visibility matrix from TX to ground reflection points
+    TX_to_G_visibility = vectorized_visibility_matrix(T, G_grid, walls_array, batch_size=1000)
+
+    # Line-of-sight analysis from TX-to-ground reflection points: Find receivers with no intersections
+    tx_to_g_mask = np.all(~TX_to_G_visibility, axis=1)
     
     candidate_indices = np.where(tx_to_g_mask)[0]
     for i in candidate_indices:
@@ -76,4 +83,6 @@ def compute_ground_reflection(T, R_grid, tx_to_g_mask):
     resultant_field = resultant_field * amplitude_term * phase_factor_r
     
     E_g_ref[tx_to_g_mask] = resultant_field[tx_to_g_mask]
+
+    print("Ground reflection field has been computed!!")
     return E_g_ref
