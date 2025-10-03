@@ -18,3 +18,4 @@ Zw = np.sqrt((1j * omega * mu)/(sigma + (1j * omega * epsilon))) # Impedance of 
 epsilon_g = 3.0*epsilon0
 sigma_g = 0.04967
 Zg = np.sqrt((1j * omega * mu)/(sigma_g + (1j * omega * epsilon_g))) # Impedance of ground at 28 GHz
+WALL_HEIGHT_TOLERANCE = 1e-6
