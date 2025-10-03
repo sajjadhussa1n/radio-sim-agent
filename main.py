@@ -1,9 +1,7 @@
 import numpy as np
 from src.preprocess import create_environment
 from src.utils import plot_pathloss
-from src.los import vectorized_visibility_matrix
-from src.los import compute_LOS_pathloss_from_Efield
-from src.los import plot_los_fields
+from src.los import compute_LOS_fields
 from src.reflection import compute_reflection_contributions
 from src.groundref import compute_ground_reflection
 
@@ -19,22 +17,21 @@ E_g_ref = np.zeros((len(R_grid), ), dtype=np.complex128)
 E_diff = np.zeros((len(R_grid), ), dtype=np.complex128)
 E_total = np.zeros((len(R_grid), ), dtype=np.complex128)
 
-distances = np.linalg.norm(R_grid - T, axis=1)
-Los_e_field, Pr_los = compute_LOS_pathloss_from_Efield(distances)
 
-visibility = vectorized_visibility_matrix(T, R_grid, walls_array)
-line_of_sight_mask = np.all(~visibility, axis=1)
-line_of_sight_mask = line_of_sight_mask & valid_rx_mask
+E_LOS = compute_LOS_fields(T, R_grid, walls_array, valid_rx_mask)
 
-E_LOS[line_of_sight_mask] = Los_e_field[line_of_sight_mask]
+LOS_map = plot_pathloss(
+    E_field=E_LOS,
+    xx=xx,
+    yy=yy,
+    walls=walls,
+    T=T,
+    nx=nx,
+    ny=ny,
+    filename="LOS_fields.png",
+    title="LOS Fields"
+)
 
-# Reshape to grid size
-P_LOS = np.full_like(line_of_sight_mask, np.nan, dtype=np.float32)  # Initialize with NaN
-P_LOS[line_of_sight_mask] = Pr_los[line_of_sight_mask]  # Assign valid FSPL values
-P_LOS = P_LOS.reshape(ny, nx)
-los_mask = line_of_sight_mask.reshape(ny, nx)
-
-plot_los_fields(T, xx, yy, los_mask, P_LOS, walls)
 
 # First-order reflection analysis: Find walls visible to TX (at least one receiver sees it)
 #reflection_walls_mask = np.any(visibility, axis=0)
