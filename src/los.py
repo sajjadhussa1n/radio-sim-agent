@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from src.constants import *
 
 def compute_facing_walls_mask(tx, walls):
     """
@@ -138,7 +139,7 @@ def vectorized_visibility_matrix(tx, receivers, walls, batch_size=10000):
 
     return visibility_matrix
 
-def compute_LOS_pathloss_from_Efield(distances):
+def compute_LOS_fields(T, R_grid, walls_array, valid_rx_mask):
     """
     Compute free-space pathloss (in dB) from the incident E-field,
     operating on a numpy array of distances.
@@ -151,13 +152,9 @@ def compute_LOS_pathloss_from_Efield(distances):
       E_complex   : Complex E-field (same shape as distances)
 
     """
-    c = 3e8  # Speed of light in m/s
-    f = 28e9 # Carrier frequency of 28 GHz
-    lambda_ = c / f # Wave-length
-    k = 2 * np.pi / lambda_  # Wave number
-    omega = 2 * np.pi * f # Radian frequency
-    P_t_dBm = 30  # Transmit power (dBm)
-    P_t_w = 10 ** ((P_t_dBm - 30) / 10)  # Transmit power in Watts
+    E_LOS = np.zeros((len(R_grid), ), dtype=np.complex128)
+    
+    distances = np.linalg.norm(R_grid - T, axis=1)
 
     # Compute incident E-field magnitude (V/m);
     E = np.sqrt(30 * P_t_w) / distances
@@ -168,20 +165,17 @@ def compute_LOS_pathloss_from_Efield(distances):
     # Combine magnitude and phase to get complex E-field
     E_complex = E * phase
 
-    # Compute power density S (W/m^2);
-    S = (E ** 2) / 377.0
+    # Compute visibility matrix
+    visibility = vectorized_visibility_matrix(T, R_grid, walls_array, batch_size=10000)
 
-    # Effective aperture for an omni antenna (m^2)
-    A_e = lambda_ ** 2 / (4 * np.pi)
+    # Line-of-sight analysis: Find receivers with no intersections
+    line_of_sight_mask = np.all(~visibility, axis=1)
 
-    # Received power (W); avoid log(0) by applying a minimum floor
-    P_r = S * A_e
-    #P_r = np.maximum(P_r, 1e-12)
-    # Convert received power to dBm\n
-    P_r_dBm = 10 * np.log10(P_r) + 30
+    line_of_sight_mask = line_of_sight_mask & valid_rx_mask
 
+    E_LOS[line_of_sight_mask] = E_complex[line_of_sight_mask] 
 
-    return E_complex, P_r_dBm      
+    return E_LOS     
 
 def plot_los_fields(T, xx, yy, los_mask, P_LOS, walls):
 
