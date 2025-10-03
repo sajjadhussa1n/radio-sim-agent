@@ -26,6 +26,7 @@ def compute_ground_reflection(T, R_grid, walls_array):
         # Stack into a (N, 3) array
     G_grid = np.column_stack((x_g, y_g, z_g))
     G_horiz = G_grid[:, :2]
+    R_horiz = R_grid[:, :2]
 
     # Compute visibility matrix from TX to ground reflection points
     TX_to_G_visibility = vectorized_visibility_matrix(T, G_grid, walls_array, batch_size=1000)
