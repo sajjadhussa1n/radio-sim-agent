@@ -44,7 +44,7 @@ plot_los_fields(T, xx, yy, los_mask, P_LOS, walls)
 
 #print("Reflection Fields computed successfully!")
 
-E_g_ref = compute_ground_reflection(T, R_grid, walls_array)
+E_g_ref = compute_ground_reflection(T, R_grid, walls_array, merged_polygons)
 
 
 
