@@ -3,7 +3,7 @@ from shapely.geometry import Polygon, LineString, Point
 from src.constants import *
 from src.los import vectorized_visibility_matrix 
 
-def compute_ground_reflection(T, R_grid):
+def compute_ground_reflection(T, R_grid, walls_array):
     # =============================================================================
     # Ground Reflection Fields Module (Vectorized)
     # =============================================================================
