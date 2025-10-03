@@ -1,5 +1,6 @@
 import numpy as np
 from src.preprocess import create_environment
+from src.utils import plot_pathloss
 from src.los import vectorized_visibility_matrix
 from src.los import compute_LOS_pathloss_from_Efield
 from src.los import plot_los_fields
@@ -45,6 +46,17 @@ plot_los_fields(T, xx, yy, los_mask, P_LOS, walls)
 #print("Reflection Fields computed successfully!")
 
 E_g_ref = compute_ground_reflection(T, R_grid, walls_array, merged_polygons)
+P_r_map = plot_pathloss(
+    E_field=E_g_ref,
+    xx=xx,
+    yy=yy,
+    walls=walls,
+    T=T,
+    nx=nx,
+    ny=ny,
+    filename="ground_reflection.png",
+    title="Ground Reflection"
+)
 
 
 
