@@ -4,6 +4,7 @@ from src.los import vectorized_visibility_matrix
 from src.los import compute_LOS_pathloss_from_Efield
 from src.los import plot_los_fields
 from src.reflection import compute_reflection_contributions
+from src.groundref import compute_ground_reflection
 
 
 
@@ -42,4 +43,9 @@ E_ref = compute_reflection_contributions(R_grid, T, TX_visible_walls, walls, bui
 valid_reflection = E_ref != 0
 
 print("Reflection Fields computed successfully!")
+
+E_g_ref = compute_ground_reflection(T, R_grid)
+
+
+
 
