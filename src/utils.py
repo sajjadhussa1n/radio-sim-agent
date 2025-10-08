@@ -76,3 +76,20 @@ def plot_pathloss(E_field, xx, yy, walls, T, nx, ny,
     print(f"Plot saved: {filepath}")
 
     return P_r_dBm
+
+def compute_pathloss_from_fields(E_field, nx, ny):
+    # Compute power density S (W/m^2);
+    S = (abs(E_field) ** 2) / 377.0
+    
+    # Effective aperture for an omni antenna (m^2)
+    A_e = lambda_ ** 2 / (4 * np.pi)
+    
+    # Received power (W); avoid log(0) by applying a minimum floor
+    P = S * A_e
+    # Convert received power to dBm\n
+    Pr_dBm = 10 * np.log10(P) + 30
+    Pr_dBm = Pr_dBm.reshape(ny,nx)
+    PL_dBm = P_t_dBm - Pr_dBm
+    PL_dBm = PL_total.reshape(ny,nx)
+    
+    return PL_dBm
