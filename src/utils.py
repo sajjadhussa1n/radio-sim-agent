@@ -95,9 +95,7 @@ def compute_pathloss_from_fields(E_field, nx, ny):
     P = S * A_e
     # Convert received power to dBm\n
     Pr_dBm = 10 * np.log10(P) + 30
-    Pr_dBm = Pr_dBm.reshape(ny,nx)
     PL_dBm = P_t_dBm - Pr_dBm
-    PL_dBm = PL_dBm.reshape(ny,nx)
     
     return PL_dBm
 
