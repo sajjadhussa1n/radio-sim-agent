@@ -15,7 +15,7 @@ T_horiz = T[:2]
 # 1. First, we need to compute pathloss using Ray-tracing
 
 # Compute Direct LOS field
-E_LOS = compute_LOS_fields(T, R_grid, walls_array, valid_rx_mask)
+E_LOS, line_of_sight_mask = compute_LOS_fields(T, R_grid, walls_array, valid_rx_mask)
 # Plot and save LOS Received Power
 P_los_map = plot_pathloss(
     E_field=E_LOS,
@@ -31,7 +31,7 @@ P_los_map = plot_pathloss(
 
 
 # Compute Specular Wall Reflections
-E_ref = compute_reflection_contributions(R_grid, T, walls_array, walls, buildings, valid_rx_mask)
+E_ref, valid_reflection = compute_reflection_contributions(R_grid, T, walls_array, walls, buildings, valid_rx_mask)
 # plot and save specular wall reflections received power 
 P_ref_map = plot_pathloss(
     E_field=E_ref,
@@ -98,7 +98,7 @@ PL_map = plot_pathloss(
 
 # 5. Now, save Fatures Maps in CSV file
 
-compute_feature_maps(T, R_grid, valid_rx_mask, LOS_mask, valid_reflection, buildings, filename='sample_pathloss_dataset_file.csv')
+compute_feature_maps(T, R_grid, valid_rx_mask, line_of_sight_mask, valid_reflection, buildings, PL, filename='sample_pathloss_dataset_file.csv')
 
 
 
