@@ -4,6 +4,7 @@ from shapely.geometry import Polygon, LineString, Point
 from concurrent.futures import ProcessPoolExecutor
 from shapely.ops import unary_union
 import multiprocessing as mp
+from src.los import vectorized_visibility_matrix
 from src.constants import *
 
 def check_3d_occlusion(ray_starts, ray_ends, walls, exclude_wall=None):
