@@ -91,6 +91,7 @@ PL_map = plot_pathloss(
     T=T,
     nx=nx,
     ny=ny,
+    cbar_label = "Pathloss (dB)",
     filename="pathloss.png",
     title="Pathloss (dB)",
     pathloss=True
