@@ -182,7 +182,7 @@ def compute_feature_maps(T, R_grid, valid_rx_mask, line_of_sight_mask, valid_ref
     # Root directory = parent of current file's directory
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     save_dir = os.path.join(root_dir, output_dir)
-    file_path = os.path.join(save_dir, file_name)
+    file_path = os.path.join(save_dir, filename)
     
     # Save DataFrame to the specified directory
     df.to_csv(file_path, index=False)
