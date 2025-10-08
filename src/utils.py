@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from shapely.geometry import Polygon, LineString, Point
 from src.constants import *
 
 def plot_pathloss(E_field, xx, yy, walls, T, nx, ny, 
