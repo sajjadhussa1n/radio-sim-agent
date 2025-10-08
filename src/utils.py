@@ -98,3 +98,35 @@ def compute_pathloss_from_fields(E_field, nx, ny):
     PL_dBm = PL_total.reshape(ny,nx)
     
     return PL_dBm
+
+def smooth_pathloss(pathloss, nx, ny):
+    """
+    Applies a 3×3 averaging filter to smooth a 2D pathloss map.
+
+    This function performs a convolution operation where each pixel is replaced
+    by the average of itself and its neighboring pixels. Edge pixels are handled
+    properly by averaging only available neighbors.
+
+    Parameters:
+    -----------
+    pathloss_2d : np.ndarray
+        A 2D array representing pathloss values over a geographic area.
+
+    Returns:
+    --------
+    np.ndarray
+        A smoothed 2D pathloss map with the same shape as the input.
+    """
+    pathloss_2d = pathloss.reshape(ny, nx)
+
+    # Define a 3×3 averaging kernel
+    kernel = np.array([[0, 1, 0],
+                       [1, 1, 1],
+                       [0, 1, 0]]) / 5.0
+
+    # Apply 2D convolution
+    smoothed_pathloss = convolve(pathloss_2d, kernel, mode='nearest')
+    flattened_pl = smoothed_pathloss.flatten()
+
+    return flattened_pl
+
