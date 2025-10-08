@@ -263,4 +263,5 @@ def compute_reflection_contributions(R_grid: np.ndarray, T: np.ndarray,
         for future in futures:
             total_reflected_e_field += future.result()
 
-    return total_reflected_e_field
+    valid_reflection = total_reflected_e_field != 0
+return total_reflected_e_field, valid_reflection
