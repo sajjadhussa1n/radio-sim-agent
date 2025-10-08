@@ -7,7 +7,7 @@ def plot_pathloss(E_field, xx, yy, walls, T, nx, ny,
                   cbar_label = "Received Power (dBm)",
                   filename="pathloss.png", 
                   title="Pathloss Heatmap", 
-                  output_dir="data"):
+                  output_dir="data", pathloss=False):
     """
     Compute pathloss from E-field and plot the received power heatmap.
 
@@ -36,15 +36,20 @@ def plot_pathloss(E_field, xx, yy, walls, T, nx, ny,
     save_dir = os.path.join(root_dir, output_dir)
 
     # --- Pathloss Computation ---
-    # Power density (W/m^2)
-    S = (abs(E_field) ** 2) / 377.0
+    if not pathloss:      
+        # Power density (W/m^2)
+        S = (abs(E_field) ** 2) / 377.0
+    
+        # Effective aperture for omni antenna (m^2)
+        A_e = lambda_ ** 2 / (4 * np.pi)
+    
+        # Received power (W) -> dBm
+        P_r = S * A_e
+        P_r_dBm = 10 * np.log10(P_r) + 30
+    else:
+        P_r_dBm = E_field
 
-    # Effective aperture for omni antenna (m^2)
-    A_e = lambda_ ** 2 / (4 * np.pi)
-
-    # Received power (W) -> dBm
-    P_r = S * A_e
-    P_r_dBm = 10 * np.log10(P_r) + 30
+                    
     P_r_dBm = P_r_dBm.reshape(ny, nx)
 
     # --- Plot ---
