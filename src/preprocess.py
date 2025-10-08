@@ -9,8 +9,8 @@ def create_environment(file='hkenv.txt'):
   
     #directory = '/content/drive/My Drive/Colab Notebooks/projects/UNET_100_x_100/data'
     #file = 'hkenv.txt'
-    nx = 100
-    ny = 100
+    nx = 50
+    ny = 50
     lb = np.array([0, 0])   # left–bottom Helsinki
     rb = np.array([1220, 0])   # right–bottom
     rt = np.array([1220, 1545])   # right–top
