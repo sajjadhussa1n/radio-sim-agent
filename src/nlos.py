@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import norm
 
 def compute_ci_path_loss(T, R_grid, path_loss_exponent=3.0, sigma=6.8, reference_distance=1.0):
     """
@@ -33,3 +34,66 @@ def compute_ci_path_loss(T, R_grid, path_loss_exponent=3.0, sigma=6.8, reference
     total_path_loss = path_loss + shadow_fading
 
     return total_path_loss
+
+# Function to calculate BEL (Building Entry Loss)
+
+def calc_BEL(T, R_grid, frequency=28, probability=0.5):
+    """
+    Calculates the Building Entry Loss (BEL) for a given frequency and probability.
+
+    This function computes the BEL based on statistical models that incorporate
+    median horizontal path loss, elevation angle correction, and probabilistic
+    variations in loss due to building penetration.
+
+    Parameters:
+    -----------
+    frequency : float, optional
+        The frequency in GHz for which the BEL is to be calculated. Default is 28 GHz.
+    probability : float, optional
+        The probability level (between 0 and 1) used to compute the inverse
+        cumulative distribution function (CDF) for log-normal distributions.
+        Default is 0.5 (median value).
+
+    Returns:
+    --------
+    np.ndarray
+        An array of computed Building Entry Loss (BEL) values in dB,
+        having the same length as R_horiz.
+
+    """
+    T_horiz = T[:2]
+    R_horiz = R_grid[:, :2]
+    
+    horizontal_dist = np.linalg.norm(R_horiz - T_horiz, axis=1)
+    Phi = np.arctan2(T[2], horizontal_dist) * (180.0 / np.pi)
+
+    r, s, t = 12.64, 3.72, 0.96  # Coefficients for L_h
+    u, v = 9.6, 2.0              # σ1 parameters
+    w, x = 9.1, -3.0             # μ2 parameters
+    y, z = 9.4, -2.1             # σ2 parameters
+    C = -3.0                     # Constant for BEL calculation
+    F_inv_p = norm.ppf(probability)  # Calculate F^-1(P)
+
+    # Calculate median horizontal path loss (scalar)
+    L_h = r + s * np.log10(frequency) + t * (np.log10(frequency))**2
+
+    # Elevation angle correction (array)
+    L_e = 0.212 * np.abs(Phi)
+
+    # Calculate μ1 (array) and μ2 (scalar)
+    mu_1 = L_h + L_e
+    mu_2 = w + x * np.log10(frequency)  # Scalar
+
+    # Calculate σ1 and σ2 (both scalars)
+    sigma_1 = u + v * np.log10(frequency)
+    sigma_2 = y + z * np.log10(frequency)
+
+    # Calculate A(P) and B(P) (A_P is an array, B_P is broadcasted to an array)
+    A_P = F_inv_p * sigma_1 + mu_1
+    B_P = F_inv_p * sigma_2 + mu_2
+
+    # Calculate Building Entry Loss (BEL) as an array
+    BEL = 10 * np.log10(10**(0.1 * A_P) + 10**(0.1 * B_P) + 10**(0.1 * C))
+
+    return BEL
+
