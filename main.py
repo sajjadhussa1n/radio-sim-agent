@@ -1,6 +1,7 @@
 import numpy as np
 from src.preprocess import create_environment
-from src.utils import plot_pathloss
+from src.utils import plot_pathloss, compute_pathloss_from_fields, smooth_pathloss, compute_feature_maps
+from src.nlos import compute_ci_path_loss, calc_BEL
 from src.los import compute_LOS_fields
 from src.reflection import compute_reflection_contributions
 from src.groundref import compute_ground_reflection
@@ -68,7 +69,6 @@ PL_total = compute_pathloss_from_fields(E_total, nx, ny)
 NLOS_path_loss = compute_ci_path_loss(T, R_grid)
 
 # Then, points where no valid ray-tracing pathloss exist, replace it with 3gpp pathloss
-PL_total = PL_total.flatten()
 PL_total = np.where(np.isinf(PL_total), NLOS_path_loss, PL_total)
 
 # 3. Now, we need to introduce Building Entry Loss (BEL) in our pathloss computation
@@ -95,6 +95,10 @@ PL_map = plot_pathloss(
     title="Pathloss (dB)",
     pathloss=True
 )
+
+# 5. Now, save Fatures Maps in CSV file
+
+compute_feature_maps(T, R_grid, valid_rx_mask, LOS_mask, valid_reflection, buildings, filename='sample_pathloss_dataset_file.csv')
 
 
 
