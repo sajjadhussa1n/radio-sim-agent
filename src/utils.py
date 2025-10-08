@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from src.constants import *
 
@@ -130,7 +131,7 @@ def smooth_pathloss(pathloss, nx, ny):
 
     return flattened_pl
 
-def compute_feature_maps(T, R_grid, valid_rx_mask, LOS_mask, valid_reflection, buildings):
+def compute_feature_maps(T, R_grid, valid_rx_mask, LOS_mask, valid_reflection, buildings, output_dir='data', filename='pathloss_dataset_file.csv'):
     
     R_horiz = R_grid[:, :2]
     T_horiz = T[:2]
@@ -177,6 +178,16 @@ def compute_feature_maps(T, R_grid, valid_rx_mask, LOS_mask, valid_reflection, b
         'LOS_mask': LOS_mask,
         'Path_loss': Path_loss
     })
+
+    # Root directory = parent of current file's directory
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    save_dir = os.path.join(root_dir, output_dir)
+    file_path = os.path.join(save_dir, file_name)
+    
+    # Save DataFrame to the specified directory
+    df.to_csv(file_path, index=False)
+
+    print(f"Dataset file saved successfully at: {file_path}")
 
     
   
