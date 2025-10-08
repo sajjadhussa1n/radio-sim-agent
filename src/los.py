@@ -175,7 +175,7 @@ def compute_LOS_fields(T, R_grid, walls_array, valid_rx_mask):
 
     E_LOS[line_of_sight_mask] = E_complex[line_of_sight_mask] 
 
-    return E_LOS     
+    return E_LOS, line_of_sight_mask     
 
 def plot_los_fields(T, xx, yy, los_mask, P_LOS, walls):
 
