@@ -226,10 +226,16 @@ def process_wall(wall, the_walls, buildings, R_grid, T_horiz, T, union_excluded_
 
 
 def compute_reflection_contributions(R_grid: np.ndarray, T: np.ndarray,
-                                     walls: list, the_walls: list, buildings: list, valid_mask):
+                                     walls_array: np.ndarray, the_walls: list, buildings: list, valid_mask):
     """Main function with parallel processing"""
     num_rx = R_grid.shape[0]
     T_horiz = T[:2]
+
+    # Compute visibility matrix
+    visibility = vectorized_visibility_matrix(T, R_grid, walls_array, batch_size=10000)
+    # First-order reflection analysis: Find walls visible to TX (at least one receiver sees it)
+    reflection_walls_mask = np.any(visibility, axis=0)
+    walls = [the_walls[i] for i in np.nonzero(reflection_walls_mask)[0]]
 
     # Precompute spatial data structures
     polygons = [b['polygon'] for b in buildings]
