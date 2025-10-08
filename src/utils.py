@@ -130,3 +130,53 @@ def smooth_pathloss(pathloss, nx, ny):
 
     return flattened_pl
 
+def compute_feature_maps(T, R_grid, valid_rx_mask, LOS_mask, valid_reflection, buildings):
+    
+    R_horiz = R_grid[:, :2]
+    T_horiz = T[:2]
+    # 3D distance feature map
+    Distance_3d = np.linalg.norm(R_grid - T, axis=1)
+    
+    dist_2d = np.linalg.norm(R_horiz - T_horiz, axis=1)
+    Phi = np.arctan2(T[2], dist_2d) * (180.0 / np.pi)
+
+    Is_building = valid_rx_mask.astype(int)
+
+    Height_map = np.zeros_like(Is_building)
+    grid_indices = [i for i in range(len(R_grid))]
+
+    for i,rx in zip(grid_indices,R_horiz):
+        for building in buildings:
+            poly = building['polygon']
+            height = building['height']
+            if poly.covers(Point(rx)):
+                Height_map[i] = height
+
+
+    LOS_mask = line_of_sight_mask.astype(int)
+
+    Reflection_mask = valid_reflection.astype(int)
+
+    RX_X = R_grid[:,0]
+    RX_Y = R_grid[:,1]
+    TX_X = np.full_like(RX_X, T[0])
+    TX_Y = np.full_like(RX_X, T[1])
+    TX_Z = np.full_like(RX_X, T[2])
+
+    df = pd.DataFrame({
+        'RX_X': RX_X,
+        'RX_Y': RX_Y,
+        'TX_X': TX_X,
+        'TX_Y': TX_Y,
+        'TX_Z': TX_Z,
+        'Distance_3d': Distance_3d,
+        'Phi': Phi,
+        'Is_building': Is_building,
+        'height': Height_map,
+        'Reflection_mask': Reflection_mask,
+        'LOS_mask': LOS_mask,
+        'Path_loss': Path_loss
+    })
+
+    
+  
