@@ -35,7 +35,7 @@ def create_environment(file='hkenv.txt'):
             'E1': np.array([x1, y1]),
             'E2': np.array([x2, y2]),
             'height': h,
-            'building_id': b_idx
+            'building_id': int(b_idx)
         }
         # Compute additional geometric properties.
         wall_dict['p_mid'] = (wall_dict['E1'] + wall_dict['E2']) / 2.0
