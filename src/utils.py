@@ -131,7 +131,7 @@ def smooth_pathloss(pathloss, nx, ny):
 
     return flattened_pl
 
-def compute_feature_maps(T, R_grid, valid_rx_mask, LOS_mask, valid_reflection, buildings, output_dir='data', filename='pathloss_dataset_file.csv'):
+def compute_feature_maps(T, R_grid, valid_rx_mask, line_of_sight_mask, valid_reflection, buildings, Path_loss, output_dir='data', filename='pathloss_dataset_file.csv'):
     
     R_horiz = R_grid[:, :2]
     T_horiz = T[:2]
