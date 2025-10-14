@@ -7,16 +7,30 @@ from src.los import compute_LOS_fields
 from src.reflection import compute_reflection_contributions
 from src.groundref import compute_ground_reflection
 from langchain.tools import tool
-from langchain.agents import create_react_agent, AgentExecutor
-from langchain.chat_models import ChatOpenAI
+from langchain.agents import create_tool_calling_agent,create_react_agent, AgentExecutor
+from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 
 if "OPENAI_API_KEY" not in os.environ:
     raise EnvironmentError("Missing OPENAI_API_KEY environment variable.")
 
 
-@tool("simulate_radio_environment", return_direct=True)
+@tool
 def simulate_radio_environment(tx_x: float, tx_y: float, tx_z: float, output_dir: str = "data") -> str:   
+    """
+    Runs the full radio simulation pipeline using deterministic EM methods and hybrid models.
+    The tool computes LOS, reflections, ground reflections, and total pathloss, 
+    then saves all plots and dataset CSV for training.
+    
+    Args:
+        tx_x (float): Transmitter x-coordinate (meters)
+        tx_y (float): Transmitter y-coordinate (meters)
+        tx_z (float): Transmitter height (meters)
+        output_dir (str): Directory to save outputs (default: "outputs")
+    
+    Returns:
+        str: Summary of results and path to the saved dataset CSV.
+    """
     buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, nx, ny, xx, yy = create_environment()
     T = np.array([tx_x, tx_y, tx_z])  # UAV (x, y, z)
     T_horiz = T[:2]
@@ -121,27 +135,56 @@ def simulate_radio_environment(tx_x: float, tx_y: float, tx_z: float, output_dir
         f" - Dataset CSV: {os.path.join(output_dir, 'sample_pathloss_dataset_file.csv')}\n"
     )
 
+tools = [simulate_radio_environment]
+tool_names = [t.name for t in tools]
+
+
+# --- 3. Model ---
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
 
-tools = [simulate_radio_environment]
 
+# --- 4. Define the prompt ---
 prompt = ChatPromptTemplate.from_template("""
-You are RadioSim Agent — an expert assistant for radio channel simulation.
-You can perform deterministic EM simulations using the provided tools.
-Answer questions, or run simulations when requested.
+You are **RadioSim Agent**, an expert in deterministic EM-based
+radio propagation simulations and pathloss modeling.
+
+You can call the following tools:
+{tools}
+
+When a user provides a natural language request about radio signal behavior,
+decide which tool(s) to call with appropriate parameters and interpret the results.
+
+Follow this reasoning format:
+
+Question: the user query
+Thought: describe your reasoning
+Action: select a tool to call (one of [{tool_names}])
+Action Input: tool parameters (if needed)
+Observation: tool output
+... (you can repeat Thought/Action/Observation if needed)
+Final Answer: your final summarized response to the user
+
+Begin!
+
+Question: {input}
+{agent_scratchpad}
 """)
 
-agent = create_react_agent(llm, tools, prompt)
-executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-# Example query
-response = executor.invoke({"input": "Simulate the radio map for a transmitter at (320, 470, 25)"})
+# --- 5. Inject missing prompt variables before agent creation ---
+# We provide static substitutions for {tools} and {tool_names}
+prompt = prompt.partial(tools=tools, tool_names=tool_names)
+
+
+# --- 6. Create agent + executor ---
+agent = create_tool_calling_agent(llm, tools, prompt)
+agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+
+# --- 7. Example query ---
+response = agent_executor.invoke({
+    "input": "Simulate radio signal strength for a UAV transmitter at (320, 470, 25)."
+})
+
+print("\n=== Agent Response ===")
 print(response["output"])
-
-
-
-
-
-
-
-
