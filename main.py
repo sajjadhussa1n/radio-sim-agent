@@ -7,11 +7,18 @@ from src.los import compute_LOS_fields
 from src.reflection import compute_reflection_contributions
 from src.groundref import compute_ground_reflection
 from langchain.tools import tool
+from langchain.agents import create_react_agent, AgentExecutor
+from langchain.chat_models import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
+
+if "OPENAI_API_KEY" not in os.environ:
+    raise EnvironmentError("Missing OPENAI_API_KEY environment variable.")
 
 
+@tool("simulate_radio_environment", return_direct=True)
 def simulate_radio_environment(tx_x: float, tx_y: float, tx_z: float, output_dir: str = "data") -> str:   
     buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, nx, ny, xx, yy = create_environment()
-    T = np.array([tx_x, tx_y, tx_z])  # UAV (x, y, z) 320, 470, 25
+    T = np.array([tx_x, tx_y, tx_z])  # UAV (x, y, z)
     T_horiz = T[:2]
 
     # 1. First, we need to compute pathloss using Ray-tracing
@@ -114,7 +121,22 @@ def simulate_radio_environment(tx_x: float, tx_y: float, tx_z: float, output_dir
         f" - Dataset CSV: {os.path.join(output_dir, 'sample_pathloss_dataset_file.csv')}\n"
     )
 
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
 
+tools = [simulate_radio_environment]
+
+prompt = ChatPromptTemplate.from_template("""
+You are RadioSim Agent — an expert assistant for radio channel simulation.
+You can perform deterministic EM simulations using the provided tools.
+Answer questions, or run simulations when requested.
+""")
+
+agent = create_react_agent(llm, tools, prompt)
+executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+# Example query
+response = executor.invoke({"input": "Simulate the radio map for a transmitter at (320, 470, 25)"})
+print(response["output"])
 
 
 
