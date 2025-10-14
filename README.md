@@ -33,4 +33,17 @@ The RadioSim Agent combines:
 
 - **Interactive web interface** for file upload and visualization
 
+---
+
+## License
+
+This project is licensed under the  
+**Creative Commons Attribution–NonCommercial 4.0 International License (CC BY-NC 4.0)**  
+See the [LICENSE](LICENSE) file for details.
+
+RadioSim Agent © 2025 Sajjad Hussain (NUST) and Conor Brennan (DCU).
+Licensed under CC BY-NC 4.0 — Non-commercial use only.
+
+
+
 
