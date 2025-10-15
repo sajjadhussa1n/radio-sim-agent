@@ -5,21 +5,41 @@ from shapely.geometry import Polygon, LineString, Point
 from shapely.ops import unary_union
 from shapely.prepared import prep
 
-def create_environment(file='hkenv.txt'):
-  
-    #directory = '/content/drive/My Drive/Colab Notebooks/projects/UNET_100_x_100/data'
-    #file = 'hkenv.txt'
-    nx = 50
-    ny = 50
-    lb = np.array([0, 0])   # left–bottom Helsinki
-    rb = np.array([1220, 0])   # right–bottom
-    rt = np.array([1220, 1545])   # right–top
-    lt = np.array([0, 1545])   # left–top
+def create_environment(location='helsinki', nx=50, ny=50):
+      
+    if location == 'helsinki':
+        lb = np.array([0, 0])   # left–bottom Helsinki
+        rb = np.array([1220, 0])   # right–bottom
+        rt = np.array([1220, 1545])   # right–top
+        lt = np.array([0, 1545])   # left–top
+    elif location == 'munich01':
+        lb = np.array([0, 142])   # left–bottom Munich-01
+        rb = np.array([381.08, -2.843])   # right–bottom
+        rt = np.array([603.567, 552.129])   # right–top
+        lt = np.array([222.487, 696.972])   # left–top
+    elif location == 'munich02':
+        lb = np.array([-72.76, 118.6])   # left–bottom Munich-02
+        rb = np.array([280.292, -16.346])   # right–bottom
+        rt = np.array([442.649, 400.759])   # right–top
+        lt = np.array([89.597, 535.705])   # left–top
+    elif location == 'london':
+        lb = np.array([232.921, -56.9875])   # left–bottom London
+        rb = np.array([1288.74, 324.5])   # right–bottom
+        rt = np.array([791.18, 1634.5])   # right–top
+        lt = np.array([-264.6, 1253])   # left–top
+    elif location == 'manhattan':
+        lb = np.array([25, 375])   # left–bottom Manhattan
+        rb = np.array([606.67, 4.47])   # right–bottom
+        rt = np.array([1042.98, 680.67])   # right–top
+        lt = np.array([457.1, 1053.89])   # left–top
+
+
     hRX = 1.50
+    file = location+'.txt'
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     directory = os.path.join(root_dir, "data")
     file_path = os.path.join(directory, file)
-    data = pd.read_csv(file_path, header=None) # np.loadtxt(file_path) #  #
+    data = np.loadtxt(file_path) #  #
     
     # =============================================================================
     # Build Wall Data Structure and Group by Building
@@ -27,8 +47,8 @@ def create_environment(file='hkenv.txt'):
     walls = []         # List to store each wall as a dictionary.
     buildings_dict = {}  # Group walls by building index.
     
-    for i in range(len(data)): 
-        row = data.iloc[i] 
+    for row in data: 
+
         x1, y1, x2, y2, b_idx, h = row[0], row[1], row[2], row[3], row[4], row[5] 
       
         wall_dict = {
@@ -120,6 +140,6 @@ def create_environment(file='hkenv.txt'):
     polys_list = [bld['polygon'] for bld in buildings]
     merged_polygons = unary_union(polys_list)
 
-    return buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, nx, ny, xx, yy
+    return buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, xx, yy
 
 
