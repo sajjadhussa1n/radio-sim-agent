@@ -23,11 +23,11 @@ def simulate_radio_environment(
     location: str = "helsinki",
     nx: int = 50,
     ny: int = 50,
-    LOS: str = True,
-    REF: str = True,
-    GREF: str = True,
-    NLOS: str = True,
-    BEL: str = True,
+    LOS: bool = True,
+    REF: bool = True,
+    GREF: bool = True,
+    NLOS: bool = True,
+    BEL: bool = True,
     output_dir: str = "data"
 ) -> str:
     """
@@ -96,7 +96,9 @@ def simulate_radio_environment(
     valid_reflection = np.zeros(len(R_grid),)
     E_diff = np.zeros((len(R_grid), ), dtype=np.complex128)
     E_total = np.zeros((len(R_grid), ), dtype=np.complex128)
-
+    
+    base_name = f"{location}_tx{int(tx_x)}_{int(tx_y)}_{int(tx_z)}"
+    
     # 1. First, we need to compute pathloss using Ray-tracing
     if LOS:
         # Compute Direct LOS field
@@ -110,7 +112,7 @@ def simulate_radio_environment(
             T=T,
             nx=nx,
             ny=ny,
-            filename="LOS.png",
+            filename=f"{base_name}_LOS.png",
             title="LOS Fields"
         )
 
@@ -126,7 +128,7 @@ def simulate_radio_environment(
             T=T,
             nx=nx,
             ny=ny,
-            filename="reflection.png",
+            filename=f"{base_name}_reflection.png",
             title="Specular Wall Reflections"
         )
 
@@ -142,7 +144,7 @@ def simulate_radio_environment(
             T=T,
             nx=nx,
             ny=ny,
-            filename="ground_reflection.png",
+            filename=f"{base_name}_ground_reflection.png",
             title="Ground Reflections"
         )
 
@@ -180,14 +182,14 @@ def simulate_radio_environment(
         nx=nx,
         ny=ny,
         cbar_label = "Pathloss (dB)",
-        filename="pathloss.png",
+        filename=f"{base_name}_pathloss.png",
         title="Pathloss (dB)",
         pathloss=True
     )
 
     # 5. Now, save Fatures Maps in CSV file
 
-    compute_feature_maps(T, R_grid, valid_rx_mask, line_of_sight_mask, valid_reflection, buildings, PL, filename='sample_pathloss_dataset_file.csv')
+    compute_feature_maps(T, R_grid, valid_rx_mask, line_of_sight_mask, valid_reflection, buildings, PL, filename=f"{base_name}_dataset.csv")
     
     return (
         f"Radio Simulation completed successfully!\n\n"
@@ -247,8 +249,20 @@ agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 
 # --- 7. Example query ---
+input_prompt = (
+    "Generate radio simulation datasets for one random transmitter positions in each of the following "
+    "locations: munich01, munich02, london, helsinki, and manhattan. "
+    "For each transmitter, choose random (x, y) coordinates within the simulation area bounds, and use "
+    "a UAV transmitter height between 25 m and 50 m. "
+    "For every run, include all propagation components — LOS, reflections, ground reflections, NLOS, and "
+    "building entry loss. Use a grid resolution of 20×20 for all simulations. "
+    "Use the same random seed for reproducibility. Finally, summarize the transmitter positions, heights, "
+    "and dataset file paths in a brief table at the end."
+)
+
+
 response = agent_executor.invoke({
-    "input": "compute pathloss radio map for a UAV transmitter in munich01 environment at location (100, 100) and at height of 35m. Include only the line of sight contribution. Also, summarize the pathloss summary statistics."
+    "input": input_prompt
 })
 
 print("\n=== Agent Response ===")
