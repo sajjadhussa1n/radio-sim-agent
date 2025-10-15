@@ -248,14 +248,7 @@ agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 # --- 7. Example query ---
 response = agent_executor.invoke({
-    "input": "compute pathloss radio map for a UAV transmitter in munich01 environment at location (100, 100) and at height of 35m. Include only the line of sight contribution."
-})
-
-print("\n=== Agent Response ===")
-print(response["output"])
-
-response = agent_executor.invoke({
-    "input": "give me brief summary report of pathloss distribution including summary statistics."
+    "input": "compute pathloss radio map for a UAV transmitter in munich01 environment at location (100, 100) and at height of 35m. Include only the line of sight contribution. Also, summarize the pathloss summary statistics."
 })
 
 print("\n=== Agent Response ===")
