@@ -1,4 +1,5 @@
 import os
+import time
 import numpy as np
 from src.preprocess import create_environment
 from src.utils import plot_pathloss, compute_pathloss_from_fields, smooth_pathloss, compute_feature_maps
@@ -89,22 +90,28 @@ def simulate_radio_environment(
 
     if eval_mode:
         eval_dict = {
-        "location": location,
-        "tx_x": tx_x,
-        "tx_y": tx_y,
-        "tx_z": tx_z,
-        "nx": nx,
-        "ny": ny,
-        "LOS": LOS,
-        "REF": REF,
-        "GREF": GREF,
-        "NLOS": NLOS,
-        "BEL": BEL,
-        "output_dir": output_dir
+            "location": location,
+            "tx_x": tx_x,
+            "tx_y": tx_y,
+            "tx_z": tx_z,
+            "nx": nx,
+            "ny": ny,
+            "LOS": LOS,
+            "REF": REF,
+            "GREF": GREF,
+            "NLOS": NLOS,
+            "BEL": BEL,
+            "output_dir": output_dir
         }
 
-        print("[Eval Mode] Returning extracted parameters.")
-        return json.dumps(eval_dict)  # Return JSON string instead of dict
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        eval_filename = os.path.join(output_dir, f"eval_output_{timestamp}.json")
+
+        with open(eval_filename, "w") as f:
+            json.dump(eval_dict, f, indent=4)
+
+        print(f"[Eval Mode] Parameters saved at {eval_filename}")
+        return f"[Eval Mode] Parameters saved at {eval_filename}"
     
     else:
 
@@ -367,73 +374,67 @@ agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 # print("\n=== Agent Response ===")
 # print(response["output"])
 
-
-def evaluate_radiosim(prompts: List[str],
-                      agent_executor,
-                      ground_truth_params: List[Dict[str, Any]]) -> float:
+def evaluate_radiosim(prompts, agent_executor, ground_truth_list, output_dir="data"):
     """
-    Evaluate parameter extraction accuracy (PAE) of the RadioSim Agent.
+    Evaluates the parameter extraction accuracy (PAE) of the RadioSim Agent.
 
     Args:
-        prompts (List[str]): List of natural language simulation prompts.
-        agent_executor: Initialized LangChain agent executor (RadioSim Agent).
-        ground_truth_params (List[Dict[str, Any]]): List of dictionaries containing
-            ground truth parameters corresponding to each prompt.
+        prompts (list[str]): List of natural-language prompts.
+        agent_executor: LangChain AgentExecutor instance.
+        ground_truth_list (list[dict]): List of ground-truth parameter dictionaries.
+        output_dir (str): Directory where eval JSONs are saved.
 
     Returns:
-        float: Parameter Extraction Accuracy (PAE) — the average fraction of correctly
-               extracted parameters across all prompts.
+        float: Parameter Extraction Accuracy (PAE)
     """
-
-    assert len(prompts) == len(ground_truth_params), \
-        "Prompts and ground truth parameter lists must have the same length."
+    assert len(prompts) == len(ground_truth_list), \
+        "The number of prompts must match the number of ground truth dictionaries."
 
     total_correct = 0
     total_params = 0
     results = []
 
-    print("\nEvaluating RadioSim Agent Parameter Extraction...\n")
+    for i, (prompt, gt_dict) in enumerate(tqdm(zip(prompts, ground_truth_list),
+                                               total=len(prompts),
+                                               desc="Evaluating Prompts")):
 
-    for i, (prompt, gt_params) in enumerate(tqdm(zip(prompts, ground_truth_params),
-                                                 total=len(prompts),
-                                                 desc="Processing Prompts")):
-        # Build the meta prompt
         eval_prompt = (
-            "Hi RadioSim Agent, you are being provided with a prompt below.\n"
-            "Read it carefully and decide which tool to use.\n"
-            "Use the `simulate_radio_environment` tool with `eval_mode=True` "
-            "to extract all relevant input parameters from the prompt.\n"
-            "Do NOT perform any simulation — only extract and return the parameters "
-            "and their values as a dictionary.\n\n"
-            f"Prompt:\n{prompt}\n"
+        "Hi RadioSim agent, you are being provided a prompt below. "
+        "Read the prompt carefully and extract the input parameters required "
+        "for the tool `simulate_radio_environment`. "
+        "Call the tool exactly **once** with eval_mode=True so that parameters are saved. "
+        "Do not call it again, do not reason further, and do not repeat actions. "
+        "Once done, stop. Here is the prompt:\n\n"
+        f"{prompt}"
         )
 
-        # Run agent to get extracted parameters
+
+        # Run the agent (this should trigger simulate_radio_environment in eval mode)
         try:
-            response = agent_executor.invoke({"input": eval_prompt})
-            content = response.get("output", "") if isinstance(response, dict) else str(response)
-
-            # Attempt to parse JSON/dict-like content safely
-            extracted_params = None
-            try:
-                extracted_params = json.loads(content)
-            except json.JSONDecodeError:
-                try:
-                    extracted_params = eval(content)
-                except Exception:
-                    extracted_params = {}
-
-            if not isinstance(extracted_params, dict):
-                extracted_params = {}
-
+            agent_executor.invoke({"input": eval_prompt})
         except Exception as e:
-            print(f"[Warning] Error processing prompt {i}: {e}")
-            extracted_params = {}
+            print(f"[⚠️] Agent failed for prompt {i}: {e}")
+            continue
+
+        # ✅ Find the latest eval_output_*.json file in output_dir
+        eval_files = [
+            os.path.join(output_dir, f) for f in os.listdir(output_dir)
+            if f.startswith("eval_output_") and f.endswith(".json")
+        ]
+        if not eval_files:
+            print(f"[⚠️] No eval file found for prompt {i}.")
+            continue
+
+        latest_file = max(eval_files, key=os.path.getmtime)
+
+        # ✅ Load extracted parameters
+        with open(latest_file, "r") as f:
+            agent_params = json.load(f)
 
         # --- Compare extracted parameters with ground truth ---
         correct = 0
-        for key, true_val in gt_params.items():
-            pred_val = extracted_params.get(key, None)
+        for key, true_val in gt_dict.items():
+            pred_val = agent_params.get(key, None)
             if isinstance(true_val, (int, float)) and isinstance(pred_val, (int, float)):
                 if abs(float(true_val) - float(pred_val)) < 1e-3:
                     correct += 1
@@ -442,16 +443,16 @@ def evaluate_radiosim(prompts: List[str],
 
         # Record statistics
         total_correct += correct
-        total_params += len(gt_params)
+        total_params += len(gt_dict)
 
         results.append({
             "id": i,
             "prompt": prompt,
-            "ground_truth": gt_params,
-            "agent_output": extracted_params,
+            "ground_truth": gt_dict,
+            "agent_output": agent_params,
             "correct_count": correct,
-            "total_params": len(gt_params),
-            "accuracy": correct / max(1, len(gt_params))
+            "total_params": len(gt_dict),
+            "accuracy": correct / max(1, len(gt_dict))
         })
 
     # --- Compute overall accuracy ---
@@ -462,17 +463,15 @@ def evaluate_radiosim(prompts: List[str],
     with open("radiosim_agent_eval_log.json", "w") as f:
         json.dump(results, f, indent=2)
 
-    return PEA
 
-# Example prompts and ground truth
-prompts = [
-    "Simulate an urban environment in Munich01 with TX at (50,60,20) and include reflections and LOS only.",
-    "Run a pathloss simulation in Helsinki at (100,120,15) with all propagation components enabled."
-]
+# Load the prompt list
+with open("data/prompts_eval.json", "r") as f:
+    prompts = json.load(f)
 
-ground_truth_params = [
-    {"location": "munich01", "tx_x": 50.0, "tx_y": 60.0, "tx_z": 20.0, "nx":50, "ny":50, "LOS": True, "REF": True, "GREF": False, "NLOS": False, "BEL": False, "output_dir":"data"},
-    {"location": "helsinki", "tx_x": 100.0, "tx_y": 120.0, "tx_z": 15.0,"nx":50, "ny":50, "LOS": True, "REF": True, "GREF": True, "NLOS": True, "BEL": True, "output_dir":"data"}
-]
+# Load the ground truth list of dictionaries
+with open("data/ground_truth_eval.json", "r") as f:
+    ground_truth_list = json.load(f)
 
-PAE = evaluate_radiosim(prompts, agent_executor, ground_truth_params)
+
+
+PEA = evaluate_radiosim(prompts, agent_executor,ground_truth_list)
