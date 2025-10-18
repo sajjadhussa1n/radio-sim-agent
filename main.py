@@ -89,21 +89,22 @@ def simulate_radio_environment(
 
     if eval_mode:
         eval_dict = {
-        "location": f"{location}",
-        "tx_x": f"{tx_x}",
-        "tx_y": f"{tx_y}",
-        "tx_z": f"{tx_z}",
-        "nx": f"{nx}",
-        "ny": f"{ny}",
-        "LOS": f"{LOS}",
-        "REF": f"{REF}",
-        "GREF": f"{GREF}",
-        "NLOS": f"{NLOS}",
-        "BEL": f"{BEL}",
-        "output_dir": f"{output_dir}"
+        "location": location,
+        "tx_x": tx_x,
+        "tx_y": tx_y,
+        "tx_z": tx_z,
+        "nx": nx,
+        "ny": ny,
+        "LOS": LOS,
+        "REF": REF,
+        "GREF": GREF,
+        "NLOS": NLOS,
+        "BEL": BEL,
+        "output_dir": output_dir
         }
 
-        return eval_dict
+        print("[Eval Mode] Returning extracted parameters.")
+        return json.dumps(eval_dict)  # Return JSON string instead of dict
     
     else:
 
