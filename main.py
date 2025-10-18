@@ -13,6 +13,10 @@ from langchain.tools import tool
 from langchain.agents import create_tool_calling_agent,create_react_agent, AgentExecutor
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
+from typing import List, Dict, Any
+from tqdm import tqdm
+from langchain_core.messages import HumanMessage
+import json
 
 
 if "OPENAI_API_KEY" not in os.environ:
@@ -214,48 +218,59 @@ def summarize_pathloss_image(image_path: str) -> str:
 
     The summary includes key spatial characteristics, relative power levels,
     and dominant propagation regions.
-
-    Args:
-        image_path (str): Path to the pathloss image file (e.g., 'data/helsinki_pathloss.png').
-
-    Returns:
-        str: A textual summary of the pathloss map, including notable gradients or hotspots.
     """
+    import base64
+    from langchain_openai import ChatOpenAI
+
     if not os.path.exists(image_path):
         return f"Image not found: {image_path}"
 
-    # Load image
+    # Read and encode image as base64
     with open(image_path, "rb") as f:
         img_bytes = f.read()
-
-    # Convert to base64 for LLM input
     img_b64 = base64.b64encode(img_bytes).decode("utf-8")
 
-    # Use GPT-4o-mini’s vision capability via LangChain
+    # Vision-capable model
     vision_model = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
 
-    vision_prompt = f"""
-You are an expert in radio propagation analysis.
+    vision_prompt = """
+You are an expert in wireless propagation and electromagnetic (EM) modeling.
 
-Analyze this pathloss heatmap image and provide a short summary describing:
-- average signal strength distribution,
-- areas of strong and weak signal,
-- any notable gradients or irregularities.
+Interpret the provided image as a *pathloss heatmap*, where:
+- Lower dB (darker) = stronger signal (less attenuation)
+- Higher dB (brighter) = weaker signal (more attenuation)
 
-Respond concisely (3–5 sentences).
+When analyzing the image, identify and describe:
+
+1. **Approximate range** of pathloss values (in dB).  
+2. **Approximate distribution** of pathloss values — e.g., uniform, skewed, clustered, or bimodal — and where each range is concentrated spatially.  
+3. **Locations of strong and weak signal regions** based on the heatmap colors.  
+4. **Any gradients, obstruction effects, or anomalies** such as sudden transitions near walls or reflective surfaces.
+
+Respond concisely in 4–6 sentences, using technical language consistent with wireless propagation terminology.
 """
 
-    # Pass the image + text prompt to the multimodal model
+    # Call the model using multimodal input
     response = vision_model.invoke(
         [
-            {"role": "user", "content": [
-                {"type": "text", "text": vision_prompt},
-                {"type": "image_url", "image_url": f"data:image/png;base64,{img_b64}"}
-            ]}
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": vision_prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
+                ],
+            }
         ]
     )
 
-    return response.content[0].text
+    # Handle both string and message-object outputs safely
+    if isinstance(response, str):
+        return response
+    elif hasattr(response, "content"):
+        return response.content
+    else:
+        return str(response)
+
 
 
 tools = [simulate_radio_environment, summarize_pathloss_image]
@@ -303,10 +318,12 @@ prompt = prompt.partial(tools=tools, tool_names=tool_names)
 agent = create_tool_calling_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-input_prompt = (
-    "Run the radio simulation for location 'helsinki' at (100,100,15) with all propagation components enabled, "
-    "and then summarize the resulting pathloss heatmap png file identifying important regions."
-)
+# input_prompt = (
+#     "Run the radio simulation for location 'helsinki' at (100,100,15) with all propagation components enabled, "
+#     "and then summarize the resulting pathloss heatmap png file identifying important regions."
+# )
+
+
 
 
 
@@ -323,9 +340,118 @@ input_prompt = (
 # )
 
 
-response = agent_executor.invoke({
-    "input": input_prompt
-})
+# response = agent_executor.invoke({
+#     "input": input_prompt
+# })
 
-print("\n=== Agent Response ===")
-print(response["output"])
+# print("\n=== Agent Response ===")
+# print(response["output"])
+
+
+def evaluate_radiosim(prompts: List[str],
+                      agent_executor,
+                      ground_truth_params: List[Dict[str, Any]]) -> float:
+    """
+    Evaluate parameter extraction accuracy (PAE) of the RadioSim Agent.
+
+    Args:
+        prompts (List[str]): List of natural language simulation prompts.
+        agent_executor: Initialized LangChain agent executor (RadioSim Agent).
+        ground_truth_params (List[Dict[str, Any]]): List of dictionaries containing
+            ground truth parameters corresponding to each prompt.
+
+    Returns:
+        float: Parameter Extraction Accuracy (PAE) — the average fraction of correctly
+               extracted parameters across all prompts.
+    """
+
+    assert len(prompts) == len(ground_truth_params), \
+        "Prompts and ground truth parameter lists must have the same length."
+
+    total_correct = 0
+    total_params = 0
+    results = []
+
+    print("\nEvaluating RadioSim Agent Parameter Extraction...\n")
+
+    for i, (prompt, gt_params) in enumerate(tqdm(zip(prompts, ground_truth_params),
+                                                 total=len(prompts),
+                                                 desc="Processing Prompts")):
+        # Build the meta prompt
+        eval_prompt = (
+            "Hi RadioSim Agent,\n\n"
+            "You are being provided a prompt below. Read it carefully, think which tool "
+            "should be called for action and extract the corresponding input parameters "
+            "for that tool. **Do not call the tool** — only extract and return the parameters.\n\n"
+            "Respond strictly as a Python dictionary containing parameter names and values.\n\n"
+            f"Here is the prompt:\n\n{prompt}"
+        )
+
+        # Run agent to get extracted parameters
+        try:
+            response = agent_executor.invoke({"input": eval_prompt})
+            content = response.get("output", "") if isinstance(response, dict) else str(response)
+
+            # Attempt to parse JSON/dict-like content safely
+            extracted_params = None
+            try:
+                extracted_params = json.loads(content)
+            except json.JSONDecodeError:
+                try:
+                    extracted_params = eval(content)
+                except Exception:
+                    extracted_params = {}
+
+            if not isinstance(extracted_params, dict):
+                extracted_params = {}
+
+        except Exception as e:
+            print(f"[Warning] Error processing prompt {i}: {e}")
+            extracted_params = {}
+
+        # --- Compare extracted parameters with ground truth ---
+        correct = 0
+        for key, true_val in gt_params.items():
+            pred_val = extracted_params.get(key, None)
+            if isinstance(true_val, (int, float)) and isinstance(pred_val, (int, float)):
+                if abs(float(true_val) - float(pred_val)) < 1e-3:
+                    correct += 1
+            elif str(true_val).strip().lower() == str(pred_val).strip().lower():
+                correct += 1
+
+        # Record statistics
+        total_correct += correct
+        total_params += len(gt_params)
+
+        results.append({
+            "id": i,
+            "prompt": prompt,
+            "ground_truth": gt_params,
+            "agent_output": extracted_params,
+            "correct_count": correct,
+            "total_params": len(gt_params),
+            "accuracy": correct / max(1, len(gt_params))
+        })
+
+    # --- Compute overall accuracy ---
+    PEA = total_correct / max(1, total_params)
+    print(f"\nParameter Extraction Accuracy (PEA): {PEA:.3f}\n")
+
+    # Save detailed log
+    with open("radiosim_agent_eval_log.json", "w") as f:
+        json.dump(results, f, indent=2)
+
+    return PEA
+
+# Example prompts and ground truth
+prompts = [
+    "Simulate an urban environment in Munich01 with TX at (50,60,20) and include reflections and LOS only.",
+    "Run a pathloss simulation in Helsinki at (100,120,15) with all propagation components enabled."
+]
+
+ground_truth_params = [
+    {"location": "munich01", "tx_x": 50.0, "tx_y": 60.0, "tx_z": 20.0, "nx":50, "ny":50, "LOS": True, "REF": True, "GREF": False, "NLOS": False, "BEL": False, "output_dir":"data"},
+    {"location": "helsinki", "tx_x": 100.0, "tx_y": 120.0, "tx_z": 15.0,"nx":50, "ny":50, "LOS": True, "REF": True, "GREF": True, "NLOS": True, "BEL": True, "output_dir":"data"}
+]
+
+PAE = evaluate_radiosim(prompts, agent_executor, ground_truth_params)
