@@ -36,46 +36,41 @@ def simulate_radio_environment(
     GREF: bool = True,
     NLOS: bool = True,
     BEL: bool = True,
-    output_dir: str = "data"
+    output_dir: str = "data",
+    eval_mode: bool = False
 ) -> str:
     """
-    Runs the full radio environment simulation pipeline using deterministic 
-    electromagnetic (EM) and hybrid modeling approaches. 
-    
-    This tool acts as the primary simulation backend for the agent, enabling 
-    flexible configuration of propagation phenomena such as line-of-sight (LOS), 
-    reflections, ground reflections, non-line-of-sight (NLOS) paths, and building 
-    entry loss (BEL). It supports natural language-driven customization of 
-    simulation parameters, including region, transmitter coordinates, and 
-    spatial grid resolution.
+    Executes a deterministic or hybrid electromagnetic (EM) radio environment simulation.
 
-    The simulation generates multi-layer propagation maps (LOS, REF, GREF, NLOS, BEL)
-    and computes the total pathloss distribution. All intermediate results, figures, 
-    and the final dataset (CSV format) are saved to the specified output directory, 
-    ready for downstream operations.
+    This function serves as the main simulation backend for the RadioSim Agent,
+    supporting both interactive simulations and evaluation-based parameter extraction.
+
+    It models multiple propagation components including:
+    - Line-of-sight (LOS)
+    - Specular reflections (REF)
+    - Ground reflections (GREF)
+    - Non-line-of-sight (NLOS) contributions
+    - Building entry loss (BEL)
 
     Args:
-        tx_x (float): Transmitter x-coordinate in meters.
-        tx_y (float): Transmitter y-coordinate in meters.
-        tx_z (float): Transmitter height in meters.
-        location (str, optional): Simulation region or city model to use 
-            (e.g., "helsinki", "munich01", "munich02", "london", "manhattan"). Defaults to "helsinki".
-        nx (int, optional): Number of horizontal grid points for the simulation 
-            area. Controls spatial resolution. Defaults to 50.
-        ny (int, optional): Number of vertical grid points for the simulation 
-            area. Defaults to 50.
-        LOS (bool, optional): Whether to include line-of-sight (LOS) computation. Defaults to True.
-        REF (bool, optional): Whether to include wall or building reflection components. Defaults to True.
-        GREF (bool, optional): Whether to include ground reflections. Defaults to True.
-        NLOS (bool, optional): Whether to include non-line-of-sight (NLOS) contributions using 3GPP CI model. Defaults to True.
-        BEL (bool, optional): Whether to include building entry loss effects for indoor receivers. Defaults to True.
-        output_dir (str, optional): Directory path for saving results, plots, and dataset files. Defaults to "data".
+        tx_x (float): Transmitter x-coordinate (in meters).
+        tx_y (float): Transmitter y-coordinate (in meters).
+        tx_z (float): Transmitter height (in meters).
+        location (str, optional): Simulation region or city model. Defaults to "helsinki".
+        nx (int, optional): Grid resolution in x-direction. Defaults to 50.
+        ny (int, optional): Grid resolution in y-direction. Defaults to 50.
+        LOS, REF, GREF, NLOS, BEL (bool): Propagation modules to include. Defaults to True.
+        output_dir (str, optional): Directory for saving all simulation results. Defaults to "data".
+        eval_mode (bool, optional): 
+            - If False: executes the full EM simulation pipeline and saves outputs.
+            - If True: returns a dictionary of parsed input parameters instead of running simulation.
 
     Returns:
-        str: Summary string containing key simulation parameters, 
-             and the path to the LOS, Reflection, Ground reflection and pathloss radio maps and generated dataset CSV file.
+        str or dict:
+            - If `eval_mode=False`: returns a string summary with dataset path.
+            - If `eval_mode=True`: returns a dictionary of extracted parameters and their values.
 
-    Example:
+    Example (Normal Simulation):
         >>> simulate_radio_environment(
         ...     tx_x=50.0, tx_y=60.0, tx_z=20.0, 
         ...     location="helsinki", nx=128, ny=128,
@@ -83,132 +78,153 @@ def simulate_radio_environment(
         ... )
         "Simulation complete. Dataset saved at outputs/helsinki_tx50_60.csv"
 
-    Notes:
-        - Natural language input to the agent (e.g., “simulate a dense urban scene 
-          with strong reflections but no NLOS”) is automatically parsed into 
-          these parameters.
-        - The output dataset can be directly used for UNet-based pathloss 
-          prediction or hybrid training pipelines.
+    Example (Evaluation Mode for Parameter Extraction):
+        >>> simulate_radio_environment(
+        ...     tx_x=50.0, tx_y=60.0, tx_z=20.0,
+        ...     location="helsinki", nx=128, ny=128,
+        ...     eval_mode=True
+        ... )
+        {"location":"helsinki","tx_x": 50.0, "tx_y": 60.0, "tx_z": 20.0, "nx": 128, "ny": 128, "LOS": True, "REF":True, "GREF":True, "NLOS":True, "BEL":True, "output_dir":"data"}
     """
 
-    buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, xx, yy = create_environment(location, nx, ny)
-    T = np.array([tx_x, tx_y, tx_z])  # UAV (x, y, z)
-    T_horiz = T[:2]
+    if eval_mode:
+        eval_dict = {
+        "location": f"{location}",
+        "tx_x": f"{tx_x}",
+        "tx_y": f"{tx_y}",
+        "tx_z": f"{tx_z}",
+        "nx": f"{nx}",
+        "ny": f"{ny}",
+        "LOS": f"{LOS}",
+        "REF": f"{REF}",
+        "GREF": f"{GREF}",
+        "NLOS": f"{NLOS}",
+        "BEL": f"{BEL}",
+        "output_dir": f"{output_dir}"
+        }
 
-    # Initialize Field vectors
-    E_LOS = np.zeros((len(R_grid), ), dtype=np.complex128)
-    E_ref = np.zeros((len(R_grid), ), dtype=np.complex128)
-    E_g_ref = np.zeros((len(R_grid), ), dtype=np.complex128)
+        return eval_dict
+    
+    else:
 
-    line_of_sight_mask = np.zeros(len(R_grid),)
-    valid_reflection = np.zeros(len(R_grid),)
-    E_diff = np.zeros((len(R_grid), ), dtype=np.complex128)
-    E_total = np.zeros((len(R_grid), ), dtype=np.complex128)
-    
-    base_name = f"{location}_tx{int(tx_x)}_{int(tx_y)}_{int(tx_z)}"
-    
-    # 1. First, we need to compute pathloss using Ray-tracing
-    if LOS:
-        # Compute Direct LOS field
-        E_LOS, line_of_sight_mask = compute_LOS_fields(T, R_grid, walls_array, valid_rx_mask)
-        # Plot and save LOS Received Power
-        P_los_map = plot_pathloss(
-            E_field=E_LOS,
+        buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, xx, yy = create_environment(location, nx, ny)
+        T = np.array([tx_x, tx_y, tx_z])  # UAV (x, y, z)
+        T_horiz = T[:2]
+
+        # Initialize Field vectors
+        E_LOS = np.zeros((len(R_grid), ), dtype=np.complex128)
+        E_ref = np.zeros((len(R_grid), ), dtype=np.complex128)
+        E_g_ref = np.zeros((len(R_grid), ), dtype=np.complex128)
+
+        line_of_sight_mask = np.zeros(len(R_grid),)
+        valid_reflection = np.zeros(len(R_grid),)
+        E_diff = np.zeros((len(R_grid), ), dtype=np.complex128)
+        E_total = np.zeros((len(R_grid), ), dtype=np.complex128)
+        
+        base_name = f"{location}_tx{int(tx_x)}_{int(tx_y)}_{int(tx_z)}"
+        
+        # 1. First, we need to compute pathloss using Ray-tracing
+        if LOS:
+            # Compute Direct LOS field
+            E_LOS, line_of_sight_mask = compute_LOS_fields(T, R_grid, walls_array, valid_rx_mask)
+            # Plot and save LOS Received Power
+            P_los_map = plot_pathloss(
+                E_field=E_LOS,
+                xx=xx,
+                yy=yy,
+                walls=walls,
+                T=T,
+                nx=nx,
+                ny=ny,
+                filename=f"{base_name}_LOS.png",
+                title="LOS Fields"
+            )
+
+        if REF:
+            # Compute Specular Wall Reflections
+            E_ref, valid_reflection = compute_reflection_contributions(R_grid, T, walls_array, walls, buildings, valid_rx_mask)
+            # plot and save specular wall reflections received power 
+            P_ref_map = plot_pathloss(
+                E_field=E_ref,
+                xx=xx,
+                yy=yy,
+                walls=walls,
+                T=T,
+                nx=nx,
+                ny=ny,
+                filename=f"{base_name}_reflection.png",
+                title="Specular Wall Reflections"
+            )
+
+        if GREF:
+            # Compute Ground Reflections
+            E_g_ref = compute_ground_reflection(T, R_grid, walls_array, merged_polygons)
+            # plot and save ground reflections received power
+            P_r_map = plot_pathloss(
+                E_field=E_g_ref,
+                xx=xx,
+                yy=yy,
+                walls=walls,
+                T=T,
+                nx=nx,
+                ny=ny,
+                filename=f"{base_name}_ground_reflection.png",
+                title="Ground Reflections"
+            )
+
+        # Compute ray-tracing pathloss
+        E_total = E_LOS + E_ref + E_g_ref
+        PL_total = compute_pathloss_from_fields(E_total, nx, ny)
+
+        # 2. Now, we need to compute pathloss for NLOS points using 3GPP CI Model
+        if NLOS:
+            # First compute NLOS pathloss for all RX Grid
+            NLOS_path_loss = compute_ci_path_loss(T, R_grid)
+
+            # Then, points where no valid ray-tracing pathloss exist, replace it with 3gpp pathloss
+            PL_total = np.where(np.isinf(PL_total), NLOS_path_loss, PL_total)
+
+        # 3. Now, we need to introduce Building Entry Loss (BEL) in our pathloss computation
+        if BEL:
+            # First compute BEL for complete grid
+            BEL_LOSS = calc_BEL(T, R_grid)
+
+            # Then add BEL loss in RX locations that are inside buildings
+            PL_total[~valid_rx_mask] = PL_total[~valid_rx_mask] + BEL_LOSS[~valid_rx_mask]
+        
+
+        # 4. Smooth the pathloss map
+        PL = smooth_pathloss(PL_total, nx, ny)
+
+        # plot and save Total Pathloss 
+        PL_map = plot_pathloss(
+            E_field=PL,
             xx=xx,
             yy=yy,
             walls=walls,
             T=T,
             nx=nx,
             ny=ny,
-            filename=f"{base_name}_LOS.png",
-            title="LOS Fields"
+            cbar_label = "Pathloss (dB)",
+            filename=f"{base_name}_pathloss.png",
+            title="Pathloss (dB)",
+            pathloss=True
         )
 
-    if REF:
-        # Compute Specular Wall Reflections
-        E_ref, valid_reflection = compute_reflection_contributions(R_grid, T, walls_array, walls, buildings, valid_rx_mask)
-        # plot and save specular wall reflections received power 
-        P_ref_map = plot_pathloss(
-            E_field=E_ref,
-            xx=xx,
-            yy=yy,
-            walls=walls,
-            T=T,
-            nx=nx,
-            ny=ny,
-            filename=f"{base_name}_reflection.png",
-            title="Specular Wall Reflections"
+        # 5. Now, save Fatures Maps in CSV file
+
+        compute_feature_maps(T, R_grid, valid_rx_mask, line_of_sight_mask, valid_reflection, buildings, PL, filename=f"{base_name}_dataset.csv")
+        
+        return (
+            f"Radio Simulation completed successfully!\n\n"
+            f"Transmitter: ({tx_x}, {tx_y}, {tx_z}) \n\n"
+            f"Saved Outputs:\n"
+            f" - LOS Field Map: {os.path.join(output_dir, 'LOS.png')}\n"
+            f" - Reflection Map: {os.path.join(output_dir, 'reflection.png')}\n"
+            f" - Ground Reflection Map: {os.path.join(output_dir, 'ground_reflection.png')}\n"
+            f" - Pathloss Map: {os.path.join(output_dir, 'pathloss.png')}\n"
+            f" - Dataset CSV: {os.path.join(output_dir, 'sample_pathloss_dataset_file.csv')}\n"
         )
-
-    if GREF:
-        # Compute Ground Reflections
-        E_g_ref = compute_ground_reflection(T, R_grid, walls_array, merged_polygons)
-        # plot and save ground reflections received power
-        P_r_map = plot_pathloss(
-            E_field=E_g_ref,
-            xx=xx,
-            yy=yy,
-            walls=walls,
-            T=T,
-            nx=nx,
-            ny=ny,
-            filename=f"{base_name}_ground_reflection.png",
-            title="Ground Reflections"
-        )
-
-    # Compute ray-tracing pathloss
-    E_total = E_LOS + E_ref + E_g_ref
-    PL_total = compute_pathloss_from_fields(E_total, nx, ny)
-
-    # 2. Now, we need to compute pathloss for NLOS points using 3GPP CI Model
-    if NLOS:
-        # First compute NLOS pathloss for all RX Grid
-        NLOS_path_loss = compute_ci_path_loss(T, R_grid)
-
-        # Then, points where no valid ray-tracing pathloss exist, replace it with 3gpp pathloss
-        PL_total = np.where(np.isinf(PL_total), NLOS_path_loss, PL_total)
-
-    # 3. Now, we need to introduce Building Entry Loss (BEL) in our pathloss computation
-    if BEL:
-        # First compute BEL for complete grid
-        BEL_LOSS = calc_BEL(T, R_grid)
-
-        # Then add BEL loss in RX locations that are inside buildings
-        PL_total[~valid_rx_mask] = PL_total[~valid_rx_mask] + BEL_LOSS[~valid_rx_mask]
-    
-
-    # 4. Smooth the pathloss map
-    PL = smooth_pathloss(PL_total, nx, ny)
-
-    # plot and save Total Pathloss 
-    PL_map = plot_pathloss(
-        E_field=PL,
-        xx=xx,
-        yy=yy,
-        walls=walls,
-        T=T,
-        nx=nx,
-        ny=ny,
-        cbar_label = "Pathloss (dB)",
-        filename=f"{base_name}_pathloss.png",
-        title="Pathloss (dB)",
-        pathloss=True
-    )
-
-    # 5. Now, save Fatures Maps in CSV file
-
-    compute_feature_maps(T, R_grid, valid_rx_mask, line_of_sight_mask, valid_reflection, buildings, PL, filename=f"{base_name}_dataset.csv")
-    
-    return (
-        f"Radio Simulation completed successfully!\n\n"
-        f"Transmitter: ({tx_x}, {tx_y}, {tx_z}) \n\n"
-        f"Saved Outputs:\n"
-        f" - LOS Field Map: {os.path.join(output_dir, 'LOS.png')}\n"
-        f" - Reflection Map: {os.path.join(output_dir, 'reflection.png')}\n"
-        f" - Ground Reflection Map: {os.path.join(output_dir, 'ground_reflection.png')}\n"
-        f" - Pathloss Map: {os.path.join(output_dir, 'pathloss.png')}\n"
-        f" - Dataset CSV: {os.path.join(output_dir, 'sample_pathloss_dataset_file.csv')}\n"
-    )
 
 
 @tool
@@ -291,6 +307,9 @@ You can call the following tools:
 
 When a user provides a natural language request about radio signal behavior,
 decide which tool(s) to call with appropriate parameters and interpret the results.
+
+If the user specifies evaluation or parameter extraction, 
+invoke the appropriate tool with eval_mode=True so that it only returns parameter values without running simulations.
 
 Follow this reasoning format:
 
@@ -379,12 +398,13 @@ def evaluate_radiosim(prompts: List[str],
                                                  desc="Processing Prompts")):
         # Build the meta prompt
         eval_prompt = (
-            "Hi RadioSim Agent,\n\n"
-            "You are being provided a prompt below. Read it carefully, think which tool "
-            "should be called for action and extract the corresponding input parameters "
-            "for that tool. **Do not call the tool** — only extract and return the parameters.\n\n"
-            "Respond strictly as a Python dictionary containing parameter names and values.\n\n"
-            f"Here is the prompt:\n\n{prompt}"
+            "Hi RadioSim Agent, you are being provided with a prompt below.\n"
+            "Read it carefully and decide which tool to use.\n"
+            "Use the `simulate_radio_environment` tool with `eval_mode=True` "
+            "to extract all relevant input parameters from the prompt.\n"
+            "Do NOT perform any simulation — only extract and return the parameters "
+            "and their values as a dictionary.\n\n"
+            f"Prompt:\n{prompt}\n"
         )
 
         # Run agent to get extracted parameters
