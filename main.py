@@ -465,11 +465,11 @@ def evaluate_radiosim(prompts, agent_executor, ground_truth_list, output_dir="da
 
 
 # Load the prompt list
-with open("data/prompts_eval.json", "r") as f:
+with open("data/prompts_eval_v2.json", "r") as f:
     prompts = json.load(f)
 
 # Load the ground truth list of dictionaries
-with open("data/ground_truth_eval.json", "r") as f:
+with open("data/ground_truth_eval_v2.json", "r") as f:
     ground_truth_list = json.load(f)
 
 
