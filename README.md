@@ -25,8 +25,6 @@ The RadioSim Agent combines:
 
 ---
 
----
-
 ## Getting Started
 
 Follow the steps below to set up and run the **Radio-Sim Agent**. You can run the pipeline either:
