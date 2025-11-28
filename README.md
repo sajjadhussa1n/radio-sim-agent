@@ -25,6 +25,54 @@ The RadioSim Agent combines:
 
 ---
 
+---
+
+## Getting Started
+
+Follow the steps below to set up and run the **Radio-Sim Agent**. You can run the pipeline either:
+
+- On **Google Colab** (quick start, recommended for testing), or
+- Locally via **CLI** (VS Code, terminal, etc.).
+
+### 1. Clone the Repository
+
+Clone the repository from GitHub:
+
+```bash
+
+!git clone https://github.com/sajjadhussa1n/radio-sim-agent.git
+%cd radio-sim-agent
+
+```
+
+### 2. Install Dependencies
+
+Install all the required libraries.
+
+```bash
+!pip install -r requirements.txt
+```
+
+### 3. Setup Your OpenAI API Key
+
+Setup your OpenAI API key to run the OpenAI Models. Make sure to keep the key secret and do not share it with others. The following script will secretly enter your OpenAI API keys and set it as the environment variable. 
+
+```bash
+from getpass import getpass
+import os
+api_key = getpass("Paste your OpenAI API key (it will be hidden): ")
+os.environ["OPENAI_API_KEY"] = api_key
+```
+
+### 4. Run the script
+
+```bash
+!python main.py
+```
+
+
+---
+
 ## Planned Extensions
 
 - **Multi-tool reasoning** for fine-grained EM feature analysis
