@@ -345,34 +345,34 @@ prompt = prompt.partial(tools=tools, tool_names=tool_names)
 agent = create_tool_calling_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-# input_prompt = (
-#     "Run the radio simulation for location 'helsinki' at (100,100,15) with all propagation components enabled, "
-#     "and then summarize the resulting pathloss heatmap png file identifying important regions."
-# )
+input_prompt = (
+     "Run the radio simulation for location 'helsinki' at (100,100,15) with all propagation components enabled, "
+     "and then summarize the resulting pathloss heatmap png file identifying important regions."
+ )
 
 
 
 
 
 # # --- 7. Example query ---
-# input_prompt = (
-#     "Generate radio simulation datasets for one random transmitter positions in each of the following "
-#     "locations: munich01, munich02, london, helsinki, and manhattan. "
-#     "For each transmitter, choose random (x, y) coordinates within the simulation area bounds, and use "
-#     "a UAV transmitter height between 25 m and 50 m. "
-#     "For every run, include all propagation components — LOS, reflections, ground reflections, NLOS, and "
-#     "building entry loss. Use a grid resolution of 20×20 for all simulations. "
-#     "Use the same random seed for reproducibility. Finally, summarize the transmitter positions, heights, "
-#     "and dataset file paths in a brief table at the end."
-# )
+input_prompt = (
+     "Generate radio simulation datasets for one random transmitter positions in each of the following "
+     "locations: munich01, munich02, london, helsinki, and manhattan. "
+     "For each transmitter, choose random (x, y) coordinates within the simulation area bounds, and use "
+     "a UAV transmitter height between 25 m and 50 m. "
+     "For every run, include all propagation components — LOS, reflections, ground reflections, NLOS, and "
+     "building entry loss. Use a grid resolution of 20×20 for all simulations. "
+     "Use the same random seed for reproducibility. Finally, summarize the transmitter positions, heights, "
+     "and dataset file paths in a brief table at the end."
+ )
 
 
-# response = agent_executor.invoke({
-#     "input": input_prompt
-# })
+response = agent_executor.invoke({
+     "input": input_prompt
+ })
 
-# print("\n=== Agent Response ===")
-# print(response["output"])
+print("\n=== Agent Response ===")
+print(response["output"])
 
 def evaluate_radiosim(prompts, agent_executor, ground_truth_list, output_dir="data"):
     """
@@ -460,18 +460,18 @@ def evaluate_radiosim(prompts, agent_executor, ground_truth_list, output_dir="da
     print(f"\nParameter Extraction Accuracy (PEA): {PEA:.3f}\n")
 
     # Save detailed log
-    with open("radiosim_agent_eval_log.json", "w") as f:
-        json.dump(results, f, indent=2)
+  #  with open("radiosim_agent_eval_log.json", "w") as f:
+  #      json.dump(results, f, indent=2)
 
 
 # Load the prompt list
-with open("data/prompts_eval_v2.json", "r") as f:
-    prompts = json.load(f)
+# with open("data/prompts_eval_v2.json", "r") as f:
+#    prompts = json.load(f)
 
 # Load the ground truth list of dictionaries
-with open("data/ground_truth_eval_v2.json", "r") as f:
-    ground_truth_list = json.load(f)
+#with open("data/ground_truth_eval_v2.json", "r") as f:
+#    ground_truth_list = json.load(f)
 
 
 
-PEA = evaluate_radiosim(prompts, agent_executor,ground_truth_list)
+# PEA = evaluate_radiosim(prompts, agent_executor,ground_truth_list)
