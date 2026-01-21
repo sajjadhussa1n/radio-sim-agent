@@ -1,7 +1,7 @@
 import os
 import time
 import numpy as np
-from src.preprocess import create_environment
+from src.preprocess import extract_buildings_bbox, create_environment
 from src.utils import plot_pathloss, compute_pathloss_from_fields, smooth_pathloss, compute_feature_maps
 from src.nlos import compute_ci_path_loss, calc_BEL
 from src.los import compute_LOS_fields
@@ -26,10 +26,13 @@ if "OPENAI_API_KEY" not in os.environ:
 
 @tool
 def simulate_radio_environment(
-    tx_x: float,
-    tx_y: float,
+    lat_tx: float,
+    lon_tx: float,
     tx_z: float,
-    location: str = "helsinki",
+    lat_min: float,
+    lon_min: float,
+    lat_max: float,
+    lon_max: float,
     nx: int = 50,
     ny: int = 50,
     LOS: bool = True,
@@ -46,7 +49,9 @@ def simulate_radio_environment(
     This function serves as the main simulation backend for the RadioSim Agent,
     supporting both interactive simulations and evaluation-based parameter extraction.
 
-    It models multiple propagation components including:
+    This function first extracts the simulation environment geometrical data within the provided latitude and longitude ranges. 
+
+    The function then models multiple propagation components including:
     - Line-of-sight (LOS)
     - Specular reflections (REF)
     - Ground reflections (GREF)
@@ -54,9 +59,13 @@ def simulate_radio_environment(
     - Building entry loss (BEL)
 
     Args:
-        tx_x (float): Transmitter x-coordinate (in meters).
-        tx_y (float): Transmitter y-coordinate (in meters).
+        lat_tx (float): Transmitter Latitude.
+        lon_tx (float): Transmitter Longitude.
         tx_z (float): Transmitter height (in meters).
+        lat_min (float): Minimum Latitude coordinate of the simulation environment.
+        lon_min (float): Minimum Longitude coordinate of the simulation environment.
+        lat_max (float): Maximum Latitude coordinate of the simulation environment.
+        lon_max (float): Maximum Longitude coordinate of the simulation environment
         location (str, optional): Simulation region or city model. Defaults to "helsinki".
         nx (int, optional): Grid resolution in x-direction. Defaults to 50.
         ny (int, optional): Grid resolution in y-direction. Defaults to 50.
@@ -70,10 +79,11 @@ def simulate_radio_environment(
         str or dict:
             - If `eval_mode=False`: returns a string summary with dataset path.
             - If `eval_mode=True`: returns a dictionary of extracted parameters and their values.
-
+    
     Example (Normal Simulation):
         >>> simulate_radio_environment(
-        ...     tx_x=50.0, tx_y=60.0, tx_z=20.0, 
+        ...     lat_tx=51.513, lon_tx=-0.097, tx_z=20.0, 
+        ...     lat_min=51.51, lon_min=-0.1, lat_max=51.516, lon_max=-0.091,
         ...     location="helsinki", nx=128, ny=128,
         ...     LOS=True, REF=True, NLOS=False, output_dir="outputs"
         ... )
@@ -81,7 +91,8 @@ def simulate_radio_environment(
 
     Example (Evaluation Mode for Parameter Extraction):
         >>> simulate_radio_environment(
-        ...     tx_x=50.0, tx_y=60.0, tx_z=20.0,
+        ...     lat_tx=51.513, lon_tx=-0.097, tx_z=20.0, 
+        ...     lat_min=51.51, lon_min=-0.1, lat_max=51.516, lon_max=-0.091,
         ...     location="helsinki", nx=128, ny=128,
         ...     eval_mode=True
         ... )
@@ -115,6 +126,7 @@ def simulate_radio_environment(
     
     else:
 
+        tx_x, tx_y, MIN_X, MIN_Y, MAX_X, MAX_Y = extract_buildings_bbox(lat_min, lat_max, lon_min, lon_max, lat_tx, lon_tx, min_building_height=12, max_building_height=20, random_seed=42)
         buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, xx, yy = create_environment(location, nx, ny)
         T = np.array([tx_x, tx_y, tx_z])  # UAV (x, y, z)
         T_horiz = T[:2]
