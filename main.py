@@ -127,7 +127,7 @@ def simulate_radio_environment(
     else:
 
         tx_x, tx_y, MIN_X, MIN_Y, MAX_X, MAX_Y = extract_buildings_bbox(lat_min, lat_max, lon_min, lon_max, lat_tx, lon_tx)
-        buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, xx, yy = create_environment(location, nx, ny)
+        buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, xx, yy = create_environment(MIN_X, MIN_Y, MAX_X, MAX_Y, location='helsinki', nx=50, ny=50)
         T = np.array([tx_x, tx_y, tx_z])  # UAV (x, y, z)
         T_horiz = T[:2]
 
