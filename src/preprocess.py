@@ -1,170 +1,11 @@
 import os
 import numpy as np
 import pandas as pd
-from shapely.geometry import Polygon, LineString, Point, box
+from shapely.geometry import Polygon, LineString, Point
 from shapely.ops import unary_union
 from shapely.prepared import prep
-import osmnx as ox
-import matplotlib.pyplot as plt
-from pyproj import Transformer
-import random
 
-def extract_buildings_bbox(
-    lat_min, lat_max, lon_min, lon_max,
-    lat_tx, lon_tx,
-    min_building_height=12, max_building_height=20,
-    random_seed=42
-):
-    """
-    Extract buildings in a lat/lon bounding box, convert coordinates to meters,
-    save walls in (x1 y1 x2 y2 building_id height) format,
-    and plot lat/lon vs meter geometries side by side.
-    """
-
-    # ----------------------------
-    # 1. Bounding polygon
-    # ----------------------------
-    polygon = box(lon_min, lat_min, lon_max, lat_max)
-
-    buildings = ox.features_from_polygon(
-        polygon,
-        tags={"building": True}
-    )
-
-    if buildings.empty:
-        print("No buildings found in the specified bounding box.")
-        return
-
-    # ----------------------------
-    # 2. Coordinate transformer
-    # ----------------------------
-    transformer = Transformer.from_crs(
-        "EPSG:4326", "EPSG:3857", always_xy=True
-    )
-
-    # Reference point (bottom-left of bbox)
-    ref_x, ref_y = transformer.transform(lon_min, lat_min)
-    ref_tx, ref_ty = transformer.traansform(lon_tx, lat_tx)
-    TX_X = ref_tx - ref_x
-    TX_Y = ref_ty - ref_y
-
-    random.seed(random_seed)
-
-    meter_polygons = []
-    wall_lines = []
-
-    # ----------------------------
-    # 3. Convert buildings
-    # ----------------------------
-    building_id = 0
-    MIN_X = 100000.0
-    MAX_X = -100000.0
-    MIN_Y = 100000.0
-    MAX_Y = -100000.0
-
-    for _, row in buildings.iterrows():
-        geom = row.geometry
-
-        if geom is None or geom.geom_type != "Polygon":
-            continue
-
-        # Convert polygon to meter coordinates
-        coords_m = []
-        for lon, lat in geom.exterior.coords:
-            x, y = transformer.transform(lon, lat)
-            coords_m.append((x - ref_x, y - ref_y))
-
-        # Ensure closure
-        if coords_m[0] != coords_m[-1]:
-            coords_m.append(coords_m[0])
-
-        # Random height for this building
-        height = float(random.randint(min_building_height, max_building_height))
-
-        # Convert polygon edges to wall segments
-        for i in range(len(coords_m) - 1):
-            x1, y1 = coords_m[i]
-            x2, y2 = coords_m[i + 1]
-            
-            if x1 < MIN_X:
-                  MIN_X = x1
-            if x1 > MAX_X:
-                  MAX_X = x1
-            if y1 < MIN_Y:
-                  MIN_Y = y1
-            if y1 > MAX_Y:
-                  MAX_Y = y1
-
-            wall_lines.append(
-                f"{x1:.2f} {y1:.2f} {x2:.2f} {y2:.2f} "
-                f"{building_id} {height:.2f}"
-            )
-
-        meter_polygons.append(Polygon(coords_m))
-        building_id += 1
-
-    # ----------------------------
-    # 4. Save wall-based file
-    # ----------------------------
-    MIN_X = MIN_X - 20.0
-    MIN_Y = MIN_Y - 20.0
-    MAX_X = MAX_X + 20.0
-    MAX_Y = MAX_Y + 20.0
-    
-    output_file = 'buildings.txt'
-    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    directory = os.path.join(root_dir, "data")
-    file_path = os.path.join(directory, output_file)  
-    with open(file_path, "w") as f:
-        for line in wall_lines:
-            f.write(line + "\n")
-
-    print(f"Saved {building_id} buildings as wall segments.")
-    print(f"Total walls written: {len(wall_lines)}")
-    print(f"Height range: [{min_building_height}, {max_building_height}] meters")
-    print(f"Random seed: {random_seed}")
-
-    # ----------------------------
-    # 5. Dual plot (verification)
-    # ----------------------------
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-
-    # Lat/Lon plot
-    buildings.plot(
-        ax=axes[0],
-        facecolor="lightgray",
-        edgecolor="black",
-        linewidth=0.5
-    )
-    axes[0].set_title("Buildings (Lat/Lon)")
-    axes[0].set_xlabel("Longitude")
-    axes[0].set_ylabel("Latitude")
-    axes[0].set_aspect("equal")
-
-    # (b) Meter-based plot (same style)
-    for poly in meter_polygons:
-        x, y = poly.exterior.xy
-        axes[1].fill(
-            x, y,
-            facecolor="lightgray",
-            edgecolor="black",
-            linewidth=0.5
-        )
-
-    axes[1].set_title("Buildings (Meters, EPSG:3857)")
-    axes[1].set_xlabel("X (meters)")
-    axes[1].set_ylabel("Y (meters)")
-    axes[1].set_aspect("equal")
-
-    plt.tight_layout()
-    # Save figure in root/data/
-    filepath = os.path.join(directory, 'buildings.png')
-    fig.savefig(filepath, dpi=600)
-    plt.close(fig)
-    #plt.show()
-    return TX_X, TX_Y, MIN_X, MIN_Y, MAX_X, MAX_Y
-
-def create_environment(MIN_X, MIN_Y, MAX_X, MAX_Y, location='helsinki', nx=50, ny=50):
+def create_environment(location='helsinki', nx=50, ny=50):
       
     if location == 'helsinki':
         lb = np.array([0, 0])   # left–bottom Helsinki
@@ -192,13 +33,9 @@ def create_environment(MIN_X, MIN_Y, MAX_X, MAX_Y, location='helsinki', nx=50, n
         rt = np.array([1042.98, 680.67])   # right–top
         lt = np.array([457.1, 1053.89])   # left–top
 
-    lb = np.array([MIN_X, MIN_Y])   # left–bottom Helsinki
-    rb = np.array([MAX_X, MIN_Y])   # right–bottom
-    rt = np.array([MAX_X, MAX_Y])   # right–top
-    lt = np.array([MIN_X, MAX_Y])   # left–top
-      
+
     hRX = 1.50
-    file = 'buildings.txt'
+    file = location+'.txt'
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     directory = os.path.join(root_dir, "data")
     file_path = os.path.join(directory, file)
@@ -304,5 +141,3 @@ def create_environment(MIN_X, MIN_Y, MAX_X, MAX_Y, location='helsinki', nx=50, n
     merged_polygons = unary_union(polys_list)
 
     return buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, xx, yy
-
-
