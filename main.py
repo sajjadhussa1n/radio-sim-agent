@@ -179,7 +179,7 @@ def simulate_radio_environment(
         PL_total = compute_pathloss_from_fields(E_total, nx, ny)
 
         # 2. Now, we need to compute pathloss for NLOS points using 3GPP CI Model
-        if NLOS:
+        
         # First compute NLOS pathloss for all RX Grid
         NLOS_path_loss = compute_ci_path_loss(T, R_grid)
 
@@ -313,14 +313,14 @@ decide which tool(s) to call with appropriate parameters and interpret the resul
 If the user specifies evaluation or parameter extraction, 
 invoke the appropriate tool with eval_mode=True so that it only returns parameter values without running simulations.
 
-Follow this reasoning format:
+Follow this reasoning format ONLY ONCE:
 
 Question: the user query
 Thought: describe your reasoning
 Action: select a tool to call (one of [{tool_names}])
 Action Input: tool parameters (if needed)
 Observation: tool output
-... (you can repeat Thought/Action/Observation if needed)
+... (DO NOT REPEAT Thought/Action/Observation)
 Final Answer: your final summarized response to the user
 
 Begin!
@@ -389,7 +389,7 @@ def evaluate_radiosim(prompts, agent_executor, ground_truth_list, output_dir="da
     results = []
 
     for i, (prompt, gt_dict) in enumerate(tqdm(zip(prompts, ground_truth_list),
-                                               total=len(prompts),
+                                               total=100,
                                                desc="Evaluating Prompts")):
 
         eval_prompt = (
