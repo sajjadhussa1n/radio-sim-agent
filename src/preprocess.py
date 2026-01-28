@@ -12,8 +12,7 @@ import random
 def extract_buildings_bbox(
     lat_min, lat_max, lon_min, lon_max,
     lat_tx, lon_tx,
-    min_building_height=12, max_building_height=20,
-    random_seed=42
+    min_building_height=12, max_building_height=20
 ):
     """
     Extract buildings in a lat/lon bounding box, convert coordinates to meters,
@@ -164,33 +163,7 @@ def extract_buildings_bbox(
     #plt.show()
     return TX_X, TX_Y, MIN_X, MIN_Y, MAX_X, MAX_Y
 
-def create_environment(MIN_X, MIN_Y, MAX_X, MAX_Y, location='helsinki', nx=50, ny=50):
-      
-    if location == 'helsinki':
-        lb = np.array([0, 0])   # left–bottom Helsinki
-        rb = np.array([1220, 0])   # right–bottom
-        rt = np.array([1220, 1545])   # right–top
-        lt = np.array([0, 1545])   # left–top
-    elif location == 'munich01':
-        lb = np.array([0, 142])   # left–bottom Munich-01
-        rb = np.array([381.08, -2.843])   # right–bottom
-        rt = np.array([603.567, 552.129])   # right–top
-        lt = np.array([222.487, 696.972])   # left–top
-    elif location == 'munich02':
-        lb = np.array([-72.76, 118.6])   # left–bottom Munich-02
-        rb = np.array([280.292, -16.346])   # right–bottom
-        rt = np.array([442.649, 400.759])   # right–top
-        lt = np.array([89.597, 535.705])   # left–top
-    elif location == 'london':
-        lb = np.array([232.921, -56.9875])   # left–bottom London
-        rb = np.array([1288.74, 324.5])   # right–bottom
-        rt = np.array([791.18, 1634.5])   # right–top
-        lt = np.array([-264.6, 1253])   # left–top
-    elif location == 'manhattan':
-        lb = np.array([25, 375])   # left–bottom Manhattan
-        rb = np.array([606.67, 4.47])   # right–bottom
-        rt = np.array([1042.98, 680.67])   # right–top
-        lt = np.array([457.1, 1053.89])   # left–top
+def create_environment(MIN_X, MIN_Y, MAX_X, MAX_Y, nx=50, ny=50):
 
     lb = np.array([MIN_X, MIN_Y])   # left–bottom Helsinki
     rb = np.array([MAX_X, MIN_Y])   # right–bottom
