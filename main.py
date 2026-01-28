@@ -1,7 +1,7 @@
 import os
 import time
 import numpy as np
-from src.preprocess import create_environment
+from src.preprocess import extract_buildings_bbox, create_environment
 from src.utils import plot_pathloss, compute_pathloss_from_fields, smooth_pathloss, compute_feature_maps
 from src.nlos import compute_ci_path_loss, calc_BEL
 from src.los import compute_LOS_fields
@@ -26,15 +26,20 @@ if "OPENAI_API_KEY" not in os.environ:
 
 @tool
 def simulate_radio_environment(
-    tx_x: float,
-    tx_y: float,
+    lat_tx: float,
+    lon_tx: float,
     tx_z: float,
-    location: str = "helsinki",
+    lat_min: float,
+    lon_min: float,
+    lat_max: float,
+    lon_max: float,
     nx: int = 50,
     ny: int = 50,
     LOS: bool = True,
     REF: bool = True,
     GREF: bool = True,
+    NLOS: bool = True,
+    BEL: bool = True,
     output_dir: str = "data",
     eval_mode: bool = False
 ) -> str:
@@ -44,19 +49,27 @@ def simulate_radio_environment(
     This function serves as the main simulation backend for the RadioSim Agent,
     supporting both interactive simulations and evaluation-based parameter extraction.
 
-    It models multiple propagation components including:
+    This function first extracts the simulation environment geometrical data within the provided latitude and longitude ranges. 
+
+    The function then models multiple propagation components including:
     - Line-of-sight (LOS)
     - Specular reflections (REF)
     - Ground reflections (GREF)
+    - Non-line-of-sight (NLOS) contributions
+    - Building entry loss (BEL)
 
     Args:
-        tx_x (float): Transmitter x-coordinate (in meters).
-        tx_y (float): Transmitter y-coordinate (in meters).
+        lat_tx (float): Transmitter Latitude.
+        lon_tx (float): Transmitter Longitude.
         tx_z (float): Transmitter height (in meters).
+        lat_min (float): Minimum Latitude coordinate of the simulation environment.
+        lon_min (float): Minimum Longitude coordinate of the simulation environment.
+        lat_max (float): Maximum Latitude coordinate of the simulation environment.
+        lon_max (float): Maximum Longitude coordinate of the simulation environment
         location (str, optional): Simulation region or city model. Defaults to "helsinki".
         nx (int, optional): Grid resolution in x-direction. Defaults to 50.
         ny (int, optional): Grid resolution in y-direction. Defaults to 50.
-        LOS, REF, GREF (bool): Propagation modules to include. Defaults to True.
+        LOS, REF, GREF, NLOS, BEL (bool): Propagation modules to include. Defaults to True.
         output_dir (str, optional): Directory for saving all simulation results. Defaults to "data".
         eval_mode (bool, optional): 
             - If False: executes the full EM simulation pipeline and saves outputs.
@@ -66,10 +79,11 @@ def simulate_radio_environment(
         str or dict:
             - If `eval_mode=False`: returns a string summary with dataset path.
             - If `eval_mode=True`: returns a dictionary of extracted parameters and their values.
-
+    
     Example (Normal Simulation):
         >>> simulate_radio_environment(
-        ...     tx_x=50.0, tx_y=60.0, tx_z=20.0, 
+        ...     lat_tx=51.513, lon_tx=-0.097, tx_z=20.0, 
+        ...     lat_min=51.51, lon_min=-0.1, lat_max=51.516, lon_max=-0.091,
         ...     location="helsinki", nx=128, ny=128,
         ...     LOS=True, REF=True, NLOS=False, output_dir="outputs"
         ... )
@@ -77,7 +91,8 @@ def simulate_radio_environment(
 
     Example (Evaluation Mode for Parameter Extraction):
         >>> simulate_radio_environment(
-        ...     tx_x=50.0, tx_y=60.0, tx_z=20.0,
+        ...     lat_tx=51.513, lon_tx=-0.097, tx_z=20.0, 
+        ...     lat_min=51.51, lon_min=-0.1, lat_max=51.516, lon_max=-0.091,
         ...     location="helsinki", nx=128, ny=128,
         ...     eval_mode=True
         ... )
@@ -95,6 +110,8 @@ def simulate_radio_environment(
             "LOS": LOS,
             "REF": REF,
             "GREF": GREF,
+            "NLOS": NLOS,
+            "BEL": BEL,
             "output_dir": output_dir
         }
 
@@ -109,7 +126,8 @@ def simulate_radio_environment(
     
     else:
 
-        buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, xx, yy = create_environment(location, nx, ny)
+        tx_x, tx_y, MIN_X, MIN_Y, MAX_X, MAX_Y = extract_buildings_bbox(lat_min, lat_max, lon_min, lon_max, lat_tx, lon_tx)
+        buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, xx, yy = create_environment(MIN_X, MIN_Y, MAX_X, MAX_Y, location='helsinki', nx=50, ny=50)
         T = np.array([tx_x, tx_y, tx_z])  # UAV (x, y, z)
         T_horiz = T[:2]
 
@@ -179,20 +197,20 @@ def simulate_radio_environment(
         PL_total = compute_pathloss_from_fields(E_total, nx, ny)
 
         # 2. Now, we need to compute pathloss for NLOS points using 3GPP CI Model
-        
-        # First compute NLOS pathloss for all RX Grid
-        NLOS_path_loss = compute_ci_path_loss(T, R_grid)
+        if NLOS:
+            # First compute NLOS pathloss for all RX Grid
+            NLOS_path_loss = compute_ci_path_loss(T, R_grid)
 
-        # Then, points where no valid ray-tracing pathloss exist, replace it with 3gpp pathloss
-        PL_total = np.where(np.isinf(PL_total), NLOS_path_loss, PL_total)
+            # Then, points where no valid ray-tracing pathloss exist, replace it with 3gpp pathloss
+            PL_total = np.where(np.isinf(PL_total), NLOS_path_loss, PL_total)
 
         # 3. Now, we need to introduce Building Entry Loss (BEL) in our pathloss computation
-    
-        # First compute BEL for complete grid
-        BEL_LOSS = calc_BEL(T, R_grid)
+        if BEL:
+            # First compute BEL for complete grid
+            BEL_LOSS = calc_BEL(T, R_grid)
 
-        # Then add BEL loss in RX locations that are inside buildings
-        PL_total[~valid_rx_mask] = PL_total[~valid_rx_mask] + BEL_LOSS[~valid_rx_mask]
+            # Then add BEL loss in RX locations that are inside buildings
+            PL_total[~valid_rx_mask] = PL_total[~valid_rx_mask] + BEL_LOSS[~valid_rx_mask]
         
 
         # 4. Smooth the pathloss map
@@ -313,14 +331,14 @@ decide which tool(s) to call with appropriate parameters and interpret the resul
 If the user specifies evaluation or parameter extraction, 
 invoke the appropriate tool with eval_mode=True so that it only returns parameter values without running simulations.
 
-Follow this reasoning format ONLY ONCE:
+Follow this reasoning format:
 
 Question: the user query
 Thought: describe your reasoning
 Action: select a tool to call (one of [{tool_names}])
 Action Input: tool parameters (if needed)
 Observation: tool output
-... (DO NOT REPEAT Thought/Action/Observation)
+... (you can repeat Thought/Action/Observation if needed)
 Final Answer: your final summarized response to the user
 
 Begin!
@@ -339,34 +357,34 @@ prompt = prompt.partial(tools=tools, tool_names=tool_names)
 agent = create_tool_calling_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-# input_prompt = (
-#     "Run the radio simulation for location 'helsinki' at (100,100,15) with all propagation components enabled, "
-#     "and then summarize the resulting pathloss heatmap png file identifying important regions."
-# )
+input_prompt = (
+     "Run the radio simulation for location 'helsinki' at (100,100,15) with all propagation components enabled, "
+     "and then summarize the resulting pathloss heatmap png file identifying important regions."
+ )
 
 
 
 
 
 # # --- 7. Example query ---
-# input_prompt = (
-#     "Generate radio simulation datasets for one random transmitter positions in each of the following "
-#     "locations: munich01, munich02, london, helsinki, and manhattan. "
-#     "For each transmitter, choose random (x, y) coordinates within the simulation area bounds, and use "
-#     "a UAV transmitter height between 25 m and 50 m. "
-#     "For every run, include all propagation components — LOS, reflections, ground reflections, NLOS, and "
-#     "building entry loss. Use a grid resolution of 20×20 for all simulations. "
-#     "Use the same random seed for reproducibility. Finally, summarize the transmitter positions, heights, "
-#     "and dataset file paths in a brief table at the end."
-# )
+input_prompt = (
+     "Generate radio simulation datasets for one random transmitter positions in each of the following "
+     "locations: munich01, munich02, london, helsinki, and manhattan. "
+     "For each transmitter, choose random (x, y) coordinates within the simulation area bounds, and use "
+     "a UAV transmitter height between 25 m and 50 m. "
+     "For every run, include all propagation components — LOS, reflections, ground reflections, NLOS, and "
+     "building entry loss. Use a grid resolution of 20×20 for all simulations. "
+     "Use the same random seed for reproducibility. Finally, summarize the transmitter positions, heights, "
+     "and dataset file paths in a brief table at the end."
+ )
 
 
-# response = agent_executor.invoke({
-#     "input": input_prompt
-# })
+response = agent_executor.invoke({
+     "input": input_prompt
+ })
 
-# print("\n=== Agent Response ===")
-# print(response["output"])
+print("\n=== Agent Response ===")
+print(response["output"])
 
 def evaluate_radiosim(prompts, agent_executor, ground_truth_list, output_dir="data"):
     """
@@ -389,7 +407,7 @@ def evaluate_radiosim(prompts, agent_executor, ground_truth_list, output_dir="da
     results = []
 
     for i, (prompt, gt_dict) in enumerate(tqdm(zip(prompts, ground_truth_list),
-                                               total=100,
+                                               total=len(prompts),
                                                desc="Evaluating Prompts")):
 
         eval_prompt = (
@@ -454,18 +472,18 @@ def evaluate_radiosim(prompts, agent_executor, ground_truth_list, output_dir="da
     print(f"\nParameter Extraction Accuracy (PEA): {PEA:.3f}\n")
 
     # Save detailed log
-    with open("radiosim_agent_eval_log.json", "w") as f:
-        json.dump(results, f, indent=2)
+  #  with open("radiosim_agent_eval_log.json", "w") as f:
+  #      json.dump(results, f, indent=2)
 
 
 # Load the prompt list
-with open("data/prompts_eval_v3.json", "r") as f:
-    prompts = json.load(f)
+# with open("data/prompts_eval_v2.json", "r") as f:
+#    prompts = json.load(f)
 
 # Load the ground truth list of dictionaries
-with open("data/ground_truth_eval_v3.json", "r") as f:
-    ground_truth_list = json.load(f)
+#with open("data/ground_truth_eval_v2.json", "r") as f:
+#    ground_truth_list = json.load(f)
 
 
 
-PEA = evaluate_radiosim(prompts, agent_executor,ground_truth_list)
+# PEA = evaluate_radiosim(prompts, agent_executor,ground_truth_list)
