@@ -33,6 +33,8 @@ def simulate_radio_environment(
     lon_min: float,
     lat_max: float,
     lon_max: float,
+    min_building_height = 12.0,
+    max_building_height = 20.0,
     nx: int = 50,
     ny: int = 50,
     LOS: bool = True,
@@ -63,6 +65,8 @@ def simulate_radio_environment(
         lon_min (float): Minimum Longitude coordinate of the simulation environment.
         lat_max (float): Maximum Latitude coordinate of the simulation environment.
         lon_max (float): Maximum Longitude coordinate of the simulation environment.
+        min_building_height (float): Minimum building height in the simulation environment. Defaults to 12.0,
+        max_building_height (float): Minimum building height in the simulation environment. Defaults to 20.0,
         nx (int, optional): Grid resolution in x-direction. Defaults to 50.
         ny (int, optional): Grid resolution in y-direction. Defaults to 50.
         LOS, REF, GREF: Propagation modules to include. Defaults to True.
@@ -82,7 +86,7 @@ def simulate_radio_environment(
         "Simulation complete. Dataset saved at data/output_file.csv"
     """
 
-    tx_x, tx_y, MIN_X, MIN_Y, MAX_X, MAX_Y = extract_buildings_bbox(lat_min, lat_max, lon_min, lon_max, lat_tx, lon_tx)
+    tx_x, tx_y, MIN_X, MIN_Y, MAX_X, MAX_Y = extract_buildings_bbox(lat_min, lat_max, lon_min, lon_max, lat_tx, lon_tx, min_building_height, max_building_height)
     buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, xx, yy = create_environment(MIN_X, MIN_Y, MAX_X, MAX_Y, nx=50, ny=50)
     T = np.array([tx_x, tx_y, tx_z])  # UAV (x, y, z)
     T_horiz = T[:2]
