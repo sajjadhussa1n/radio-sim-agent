@@ -33,8 +33,8 @@ def simulate_radio_environment(
     lon_min: float,
     lat_max: float,
     lon_max: float,
-    min_building_height = 12.0,
-    max_building_height = 20.0,
+    min_building_height: int = 12,
+    max_building_height: int = 20,
     nx: int = 50,
     ny: int = 50,
     LOS: bool = True,
@@ -65,8 +65,8 @@ def simulate_radio_environment(
         lon_min (float): Minimum Longitude coordinate of the simulation environment.
         lat_max (float): Maximum Latitude coordinate of the simulation environment.
         lon_max (float): Maximum Longitude coordinate of the simulation environment.
-        min_building_height (float): Minimum building height in the simulation environment. Defaults to 12.0,
-        max_building_height (float): Minimum building height in the simulation environment. Defaults to 20.0,
+        min_building_height (int): Minimum building height in the simulation environment. Defaults to 12.
+        max_building_height (int): Minimum building height in the simulation environment. Defaults to 20.
         nx (int, optional): Grid resolution in x-direction. Defaults to 50.
         ny (int, optional): Grid resolution in y-direction. Defaults to 50.
         LOS, REF, GREF: Propagation modules to include. Defaults to True.
@@ -87,7 +87,7 @@ def simulate_radio_environment(
     """
 
     tx_x, tx_y, MIN_X, MIN_Y, MAX_X, MAX_Y = extract_buildings_bbox(lat_min, lat_max, lon_min, lon_max, lat_tx, lon_tx, min_building_height, max_building_height)
-    buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, xx, yy = create_environment(MIN_X, MIN_Y, MAX_X, MAX_Y, nx=50, ny=50)
+    buildings, polygons, R_grid, R_horiz, valid_rx_mask, merged_polygons, walls, walls_array, xx, yy = create_environment(MIN_X, MIN_Y, MAX_X, MAX_Y, nx=nx, ny=ny)
     T = np.array([tx_x, tx_y, tx_z])  # UAV (x, y, z)
     T_horiz = T[:2]
 
@@ -101,7 +101,7 @@ def simulate_radio_environment(
     E_diff = np.zeros((len(R_grid), ), dtype=np.complex128)
     E_total = np.zeros((len(R_grid), ), dtype=np.complex128)
     
-    base_name = f"{output}_tx{int(tx_x)}_{int(tx_y)}_{int(tx_z)}"
+    base_name = f"output_tx{int(tx_x)}_{int(tx_y)}_{int(tx_z)}"
     
     # 1. First, we need to compute pathloss using Ray-tracing
     if LOS:
