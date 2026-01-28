@@ -322,7 +322,7 @@ Transmitter configuration:
 Place the transmitter at latitude 51.513, longitude −0.097, with a height of 20 meters above ground.
 
 Simulation grid:
-Discretize the environment into a 10 × 10 spatial grid covering the specified geographic bounds.
+Discretize the environment into a 50 × 50 spatial grid covering the specified geographic bounds.
 
 Propagation mechanisms:
 Include line-of-sight (LOS) propagation and reflection-based (REF) propagation in the simulation. No other propagation mechanisms are required.
