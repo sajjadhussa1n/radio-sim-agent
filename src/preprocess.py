@@ -20,6 +20,8 @@ def extract_buildings_bbox(
     and plot lat/lon vs meter geometries side by side.
     """
 
+    random_seed = 42
+
     # ----------------------------
     # 1. Bounding polygon
     # ----------------------------
@@ -43,7 +45,7 @@ def extract_buildings_bbox(
 
     # Reference point (bottom-left of bbox)
     ref_x, ref_y = transformer.transform(lon_min, lat_min)
-    ref_tx, ref_ty = transformer.traansform(lon_tx, lat_tx)
+    ref_tx, ref_ty = transformer.transform(lon_tx, lat_tx)
     TX_X = ref_tx - ref_x
     TX_Y = ref_ty - ref_y
 
@@ -135,10 +137,21 @@ def extract_buildings_bbox(
         edgecolor="black",
         linewidth=0.5
     )
-    axes[0].set_title("Buildings (Lat/Lon)")
+
+    # Plot TX point in Lat/Lon plot
+    axes[0].scatter(
+        lon_tx, lat_tx,
+        color="red",
+        s=60,
+        zorder=5,
+        label="TX"
+    )
+
+    axes[0].set_title("Radio Environment (Lat/Lon)")
     axes[0].set_xlabel("Longitude")
     axes[0].set_ylabel("Latitude")
     axes[0].set_aspect("equal")
+    axes[0].legend()
 
     # (b) Meter-based plot (same style)
     for poly in meter_polygons:
@@ -150,10 +163,20 @@ def extract_buildings_bbox(
             linewidth=0.5
         )
 
-    axes[1].set_title("Buildings (Meters, EPSG:3857)")
+    # TX point
+    axes[1].scatter(
+        TX_X, TX_Y,
+        color="red",
+        s=60,
+        zorder=5,
+        label="TX"
+    )
+
+    axes[1].set_title("Radio Environment (Meters)")
     axes[1].set_xlabel("X (meters)")
     axes[1].set_ylabel("Y (meters)")
     axes[1].set_aspect("equal")
+    axes[1].legend()
 
     plt.tight_layout()
     # Save figure in root/data/
